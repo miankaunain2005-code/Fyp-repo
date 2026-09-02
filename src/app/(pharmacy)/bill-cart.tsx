@@ -54,7 +54,34 @@ export default function Billcart() {
 
         try {
 
-            // Update Medicine Stock
+            //  FIX: Pehle SAB items ka stock validate karo,
+            // stock deduct karna shuru karne se pehle.
+            // Isse partial/negative deduction se bachte hain.
+            for (const item of billItems) {
+
+                const ref = doc(db, "medicines", item.id);
+                const snap = await getDoc(ref);
+
+                if (!snap.exists()) {
+                    Alert.alert(
+                        "Medicine Not Found",
+                        `${item.name} ab system mein maujood nahi hai.`
+                    );
+                    return;
+                }
+
+                const currentStock = snap.data().stock || 0;
+
+                if (currentStock < item.qty) {
+                    Alert.alert(
+                        "Insufficient Stock",
+                        `${item.name} ka stock sirf ${currentStock} hai, lekin bill mein ${item.qty} hai. Quantity kam karein.`
+                    );
+                    return;
+                }
+            }
+
+            // Ab safely stock deduct karo (validation pass ho chuki hai)
             for (const item of billItems) {
 
                 const ref = doc(

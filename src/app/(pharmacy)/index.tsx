@@ -392,7 +392,7 @@ export default function PharmacyDashboard() {
                         onPress={() =>
                             router.push({
                                 pathname:
-                                    "/(pharmacy)/prescription-detail",
+                                    "/(pharmacy)/prescription-history",
                                 params: {
                                     prescriptionId: item.id,
                                 },

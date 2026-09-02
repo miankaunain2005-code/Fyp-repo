@@ -34,11 +34,21 @@ export default function OrderFromPrescription() {
     const findAlternative = (stockItem: any) =>
         stockList.find((s) => s.salt === stockItem?.salt && s.stock > 0 && s.name !== stockItem?.name);
 
-    const addToCart = async (item: any) => {
+    //  FIX: ab "med" (prescription ka medicine object) bhi le rahe hain,
+    // taake uska quantity cart mein "maxQuantity" ke taur pe save ho sake.
+    // Isse patient prescription se zyada quantity add nahi kar sakega.
+    const addToCart = async (item: any, med: any) => {
         try {
             await addDoc(collection(db, "cart"), {
-                userId: user?.uid, medicineId: item.id, name: item.name,
-                salt: item.salt, price: item.price, createdAt: new Date(), quantity: 1,
+                userId: user?.uid,
+                medicineId: item.id,
+                name: item.name,
+                salt: item.salt,
+                price: item.price,
+                createdAt: new Date(),
+                quantity: 1,
+                maxQuantity: Number(med?.quantity) || 1,      // 👈 naya field
+                prescriptionId: prescription?.id || null,      // 👈 traceability ke liye
             });
             setAddedIds((prev) => [...prev, item.id]);
             Alert.alert("Added ✅", `${item.name} added to cart`);
@@ -48,20 +58,21 @@ export default function OrderFromPrescription() {
         }
     };
 
-    const handleAdd = (stockItem: any) => {
+    //  FIX: "med" ab yahan tak pass ho raha hai (pehle sirf stockItem jata tha)
+    const handleAdd = (stockItem: any, med: any) => {
         if (!stockItem || stockItem.stock <= 0) {
             const alt = stockItem ? findAlternative(stockItem) : null;
             if (alt) {
                 Alert.alert("Out of Stock — Alternative Available 💊", `${alt.name} available instead. Add it?`, [
                     { text: "Cancel", style: "cancel" },
-                    { text: "Add Alternative", onPress: () => addToCart(alt) },
+                    { text: "Add Alternative", onPress: () => addToCart(alt, med) },
                 ]);
             } else {
                 Alert.alert("Out of Stock ❌", "No alternative available for this medicine.");
             }
             return;
         }
-        addToCart(stockItem);
+        addToCart(stockItem, med);
     };
 
     if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2563EB" /></View>;
@@ -84,6 +95,7 @@ export default function OrderFromPrescription() {
                         <Text style={styles.medName}>💊 {med.medicineName}</Text>
                         <Text style={styles.medInfo}>Dosage: {med.dosage}</Text>
                         <Text style={styles.medInfo}>Duration: {med.duration}</Text>
+                        <Text style={styles.medInfo}>Prescribed Quantity: {med.quantity}</Text>
 
                         {stockItem ? (
                             <Text style={styles.price}>💰 Rs {stockItem.price} {!inStock && "— Out of Stock"}</Text>
@@ -93,7 +105,7 @@ export default function OrderFromPrescription() {
 
                         <TouchableOpacity
                             style={[styles.addBtn, isAdded && { backgroundColor: "#9CA3AF" }]}
-                            onPress={() => handleAdd(stockItem)}
+                            onPress={() => handleAdd(stockItem, med)}
                             disabled={isAdded}
                         >
                             <Ionicons name={isAdded ? "checkmark" : "cart"} size={18} color="#fff" />

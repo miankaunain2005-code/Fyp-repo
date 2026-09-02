@@ -42,7 +42,7 @@ export default function SideDrawer({
         setTimeout(() => {
             Alert.alert(
                 "Logout",
-                "Kya aap sure hain aap logout karna chahte hain?",
+                "Are You Sure?",
                 [
                     { text: "Cancel", style: "cancel" },
                     {
