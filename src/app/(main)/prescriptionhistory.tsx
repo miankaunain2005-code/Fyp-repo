@@ -15,14 +15,36 @@ import {
 
 export default function PrescriptionHistory() {
 
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
 
     const [loading, setLoading] = useState(true);
     const [list, setList] = useState<any[]>([]);
+    const [debugInfo, setDebugInfo] = useState<string>(""); // 👈 TEMPORARY DEBUG
 
     useEffect(() => {
 
-        if (!user) return;
+        // 👇 TEMPORARY DEBUG LOG — batayega ke restart ke waqt
+        // user object kab available hota hai
+        console.log("=== PRESCRIPTION HISTORY DEBUG ===");
+        console.log("authLoading:", authLoading);
+        console.log("user:", user);
+        console.log("user?.uid:", user?.uid);
+
+        if (!user) {
+            setDebugInfo(
+                `User null hai abhi. authLoading = ${authLoading}`
+            );
+            // 👇 FIX: pehle yahan setLoading(false) nahi hota tha
+            // agar user hamesha ke liye null reh jaye (auth fail ho)
+            // to spinner hamesha chalta rehta. Ab agar authLoading
+            // false ho chuki hai aur user phir bhi null hai, loading band karo.
+            if (!authLoading) {
+                setLoading(false);
+            }
+            return;
+        }
+
+        setDebugInfo(`Querying prescriptions where userId == ${user.uid}`);
 
         const q = query(
             collection(db, "prescriptions"),
@@ -34,23 +56,33 @@ export default function PrescriptionHistory() {
             q,
             (snapshot) => {
 
-                const data = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                }));
+                console.log("Snapshot received. Doc count:", snapshot.docs.length);
+
+                const data = snapshot.docs.map(doc => {
+                    console.log("Doc data:", doc.id, doc.data());
+                    return {
+                        id: doc.id,
+                        ...doc.data(),
+                    };
+                });
 
                 setList(data);
                 setLoading(false);
+                setDebugInfo(`Found ${data.length} prescription(s) for uid: ${user.uid}`);
             },
             (error) => {
+                // 👇 Yeh sabse zaroori hai — agar permission-denied ya
+                // index-missing error aata hai to yahan dikhega
+                console.log("=== FIRESTORE QUERY ERROR ===");
                 console.log(error);
+                setDebugInfo(`ERROR: ${error.message}`);
                 setLoading(false);
             }
         );
 
         return () => unsub();
 
-    }, [user]);
+    }, [user, authLoading]);
 
     if (loading) {
         return (
@@ -91,6 +123,12 @@ export default function PrescriptionHistory() {
 
             </View>
 
+            {/* 👇 TEMPORARY DEBUG BOX — screen pe hi dikhega, delete kar dena baad mein */}
+            <View style={styles.debugBox}>
+                <Text style={styles.debugText}>DEBUG: {debugInfo}</Text>
+                <Text style={styles.debugText}>Current uid: {user?.uid || "NULL"}</Text>
+            </View>
+
             {list.length === 0 ? (
 
                 <View style={styles.emptyCard}>
@@ -125,8 +163,6 @@ export default function PrescriptionHistory() {
                             <Text style={styles.patientName}>
                                 👤 {item.patientName}
                             </Text>
-
-
 
                         </View>
 
@@ -174,7 +210,7 @@ export default function PrescriptionHistory() {
                             style={styles.button}
                             onPress={() =>
                                 router.push({
-                                    pathname: "/(main)/profile",
+                                    pathname: "/(main)/prescription-details",
                                     params: {
                                         prescriptionId: item.id,
                                     },
@@ -198,7 +234,7 @@ export default function PrescriptionHistory() {
 
             )}
 
-            <View style={{ height: 30 }} />
+            <View style={{ height: 120 }} />
 
         </ScrollView>
     );
@@ -248,6 +284,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
 
+    debugBox: {
+        backgroundColor: "#FEF3C7",
+        margin: 15,
+        padding: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: "#F59E0B",
+    },
+
+    debugText: {
+        color: "#92400E",
+        fontSize: 11,
+        fontFamily: "monospace",
+    },
+
     emptyCard: {
         margin: 20,
         backgroundColor: "#fff",
@@ -279,10 +330,6 @@ const styles = StyleSheet.create({
         borderRadius: 18,
         padding: 18,
         elevation: 4,
-
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
         shadowOffset: {
             width: 0,
             height: 3,
@@ -342,4 +389,3 @@ const styles = StyleSheet.create({
     },
 
 });
-

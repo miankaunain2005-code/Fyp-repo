@@ -4,7 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function CartScreen() {
     const { user } = useAuth();
@@ -36,7 +36,19 @@ export default function CartScreen() {
 
     useFocusEffect(useCallback(() => { fetchCart(); }, []));
 
-    const increaseQty = async (id: string, currentQty: number) => {
+    //  FIX: maxQty param add kiya. Agar item prescription se aaya hai
+    // (maxQuantity field set hai) to us limit se aage quantity nahi badhegi.
+    // Agar maxQty undefined hai (pharmacy.tsx se general add hua item),
+    // to koi limit nahi lagti.
+    const increaseQty = async (id: string, currentQty: number, maxQty?: number) => {
+        if (maxQty && currentQty >= maxQty) {
+            Alert.alert(
+                "Limit Reached",
+                `Prescription ke mutabiq is medicine ki sirf ${maxQty} quantity allow hai.`
+            );
+            return;
+        }
+
         const newQty = currentQty + 1;
         setCart((prev) => prev.map((item) => (item.id === id ? { ...item, quantity: newQty } : item)));
         try { await updateDoc(doc(db, "cart", id), { quantity: newQty }); } catch (error) { console.log(error); }
@@ -64,6 +76,12 @@ export default function CartScreen() {
                 <Text style={styles.name}>{item.name}</Text>
                 <Text style={styles.salt}>{item.salt}</Text>
                 <Text style={styles.price}>Rs {item.price * item.quantity}</Text>
+                {/*  agar prescription-linked item hai to limit dikhado */}
+                {item.maxQuantity ? (
+                    <Text style={styles.limitText}>
+                        Prescribed limit: {item.maxQuantity}
+                    </Text>
+                ) : null}
             </View>
             <View style={styles.right}>
                 <View style={styles.qtyContainer}>
@@ -71,7 +89,10 @@ export default function CartScreen() {
                         <Text style={styles.qtyText}>-</Text>
                     </TouchableOpacity>
                     <Text style={styles.qtyValue}>{item.quantity}</Text>
-                    <TouchableOpacity style={styles.qtyBtn} onPress={() => increaseQty(item.id, item.quantity)}>
+                    <TouchableOpacity
+                        style={styles.qtyBtn}
+                        onPress={() => increaseQty(item.id, item.quantity, item.maxQuantity)}
+                    >
                         <Text style={styles.qtyText}>+</Text>
                     </TouchableOpacity>
                 </View>
@@ -114,6 +135,7 @@ const styles = StyleSheet.create({
     name: { fontSize: 18, fontWeight: "700" },
     salt: { color: "#666", marginTop: 5 },
     price: { marginTop: 8, color: "#2563EB", fontWeight: "700" },
+    limitText: { marginTop: 4, color: "#F59E0B", fontSize: 12, fontWeight: "600" },
     right: { alignItems: "center" },
     qtyContainer: { flexDirection: "row", alignItems: "center" },
     qtyBtn: { width: 35, height: 35, backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center", borderRadius: 8 },

@@ -184,8 +184,6 @@ export default function PrescriptionDetails() {
                     </Text>
                 </View>
 
-
-
                 <View style={styles.row}>
                     <Text style={styles.label}>Date</Text>
                     <Text style={styles.value}>
@@ -217,7 +215,9 @@ export default function PrescriptionDetails() {
                     {data.symptoms || "N/A"}
                 </Text>
 
-
+                <Text style={styles.sectionTitle}>
+                    Diagnosis
+                </Text>
 
                 <Text style={styles.description}>
                     {data.diagnosis || "N/A"}
@@ -283,12 +283,14 @@ export default function PrescriptionDetails() {
 
             </View>
 
+            {/* 👇 FIX: ab yeh sahi screen (order-from-prescription) pe jayega,
+                jahan har medicine ke saamne "Add to Cart" button hota hai */}
             {!data.dispensedAtPharmacy && (
                 <TouchableOpacity
                     style={styles.orderButton}
                     onPress={() =>
                         router.push({
-                            pathname: "/(main)/prescriptionhistory",
+                            pathname: "/(main)/order-from-prescription",
                             params: { prescriptionId: data.id },
                         })
                     }
@@ -297,6 +299,7 @@ export default function PrescriptionDetails() {
                     <Text style={styles.buttonText}>Order Medicines (Home Delivery)</Text>
                 </TouchableOpacity>
             )}
+
             {/* ACTION BUTTONS */}
 
             <TouchableOpacity
