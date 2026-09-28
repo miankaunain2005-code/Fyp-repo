@@ -2,13 +2,13 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyB9HOgUcdcPgLcLGBRqeFQ2NmNScp2uygU",
-    authDomain: "agentic-healthcare-opd.firebaseapp.com",
-    projectId: "agentic-healthcare-opd",
-    storageBucket: "agentic-healthcare-opd.firebasestorage.app",
-    messagingSenderId: "459137852030",
-    appId: "1:459137852030:web:ed89955808ba48cfa1ae2f"
+export const firebaseConfig = {
+  apiKey: "AIzaSyB9HOgUcdcPgLcLGBRqeFQ2NmNScp2uygU",
+  authDomain: "agentic-healthcare-opd.firebaseapp.com",
+  projectId: "agentic-healthcare-opd",
+  storageBucket: "agentic-healthcare-opd.firebasestorage.app",
+  messagingSenderId: "459137852030",
+  appId: "1:459137852030:web:ed89955808ba48cfa1ae2f",
 };
 
 //  prevent duplicate app

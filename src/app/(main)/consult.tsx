@@ -1,11 +1,27 @@
 import SlipPopup from "@/src/components/SlipPopup";
 import { useAuth } from "@/src/context/AuthContext";
-import { createAppointment, getDoctors, getUserById } from "@/src/utils/firestoreService";
 import {
-  createPatient, findPatient, generatePatientId, getPatient, updatePatient,
+  createAppointment,
+  getDoctors,
+  getUserById,
+} from "@/src/utils/firestoreService";
+import { formatDOBInput, formatPhoneInput } from "@/src/utils/inputFormatters";
+import {
+  createPatient,
+  findPatient,
+  generatePatientId,
+  getPatient,
+  updatePatient,
 } from "@/src/utils/patientService";
 import React, { useEffect, useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function Consult() {
   const [visible, setVisible] = useState(false);
@@ -23,7 +39,11 @@ export default function Consult() {
   useEffect(() => {
     const loadPatient = async () => {
       if (bookingFor !== "self") {
-        setName(""); setDOB(""); setPhone(""); setGender(""); setAge("");
+        setName("");
+        setDOB("");
+        setPhone("");
+        setGender("");
+        setAge("");
         return;
       }
       if (!user) return;
@@ -47,15 +67,27 @@ export default function Consult() {
   };
 
   const generateSlip = async () => {
-    if (!selectedDoctor) { alert("Please select a doctor"); return; }
-    if (!name || !DOB || !phone || !gender || !age) { alert("Please fill all fields"); return; }
+    if (!selectedDoctor) {
+      alert("Please select a doctor");
+      return;
+    }
+    if (!name || !DOB || !phone || !gender || !age) {
+      alert("Please fill all fields");
+      return;
+    }
 
     let patientId = "";
 
     if (bookingFor === "self") {
-      if (!user) { alert("Please login first"); return; }
+      if (!user) {
+        alert("Please login first");
+        return;
+      }
       const userData = await getUserById(user.uid);
-      if (!userData) { alert("User not found"); return; }
+      if (!userData) {
+        alert("User not found");
+        return;
+      }
       patientId = userData.patientId;
       await updatePatient(patientId, { name, phone, gender, DOB, age });
     } else {
@@ -67,7 +99,7 @@ export default function Consult() {
         patientId = patient.patientId;
         Alert.alert(
           "Existing Patient Found ✅",
-          `Ye patient pehle se exist karta hai. Purani Patient ID (${patientId}) use ki ja rahi hai.`
+          `Ye patient pehle se exist karta hai. Purani Patient ID (${patientId}) use ki ja rahi hai.`,
         );
       } else {
         // Naya patient — nayi ID banao
@@ -75,15 +107,21 @@ export default function Consult() {
         await createPatient({ patientId, name, phone, gender, DOB, age });
         Alert.alert(
           "New Patient Registered 🆕",
-          `Nayi Patient ID generate hui hai: ${patientId}`
+          `Nayi Patient ID generate hui hai: ${patientId}`,
         );
       }
     }
 
     const token = "TKN-" + Math.floor(1000 + Math.random() * 9000);
     const data = {
-      token, patientId, userId: user?.uid,
-      name, DOB, phone, gender, age,
+      token,
+      patientId,
+      userId: user?.uid,
+      name,
+      DOB,
+      phone,
+      gender,
+      age,
       doctorId: selectedDoctor.uid,
       doctorName: selectedDoctor.name,
       doctorEmail: selectedDoctor.email,
@@ -97,7 +135,11 @@ export default function Consult() {
       await createAppointment(data);
       setSlip(data);
       setVisible(true);
-      setName(""); setDOB(""); setPhone(""); setGender(""); setAge("");
+      setName("");
+      setDOB("");
+      setPhone("");
+      setGender("");
+      setAge("");
     } catch (error) {
       console.log(error);
       alert("Firestore save failed");
@@ -117,24 +159,71 @@ export default function Consult() {
         </TouchableOpacity>
       </View>
 
-      <TextInput placeholder="Name" value={name} onChangeText={setName} style={styles.input} />
-      <TextInput placeholder="date-of-birth" value={DOB} onChangeText={setDOB} style={styles.input} />
-      <TextInput placeholder="Phone" value={phone} onChangeText={setPhone} style={styles.input} />
-      <TextInput placeholder="Gender" value={gender} onChangeText={setGender} style={styles.input} />
-      <TextInput placeholder="Age" value={age} onChangeText={setAge} keyboardType="number-pad" style={styles.input} />
+      <TextInput
+        placeholder="Name"
+        value={name}
+        onChangeText={setName}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Date of Birth (DD-MM-YYYY)"
+        value={DOB}
+        onChangeText={(text) => setDOB(formatDOBInput(text))}
+        keyboardType="number-pad"
+        maxLength={10}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Phone (03XX-XXXXXXX)"
+        value={phone}
+        onChangeText={(text) => setPhone(formatPhoneInput(text))}
+        keyboardType="number-pad"
+        maxLength={12}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Gender"
+        value={gender}
+        onChangeText={setGender}
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Age"
+        value={age}
+        onChangeText={setAge}
+        keyboardType="number-pad"
+        style={styles.input}
+      />
 
-      <Text style={{ fontWeight: "700", marginTop: 15, marginBottom: 10 }}>Select Doctor</Text>
+      <Text style={{ fontWeight: "700", marginTop: 15, marginBottom: 10 }}>
+        Select Doctor
+      </Text>
 
       {doctors.map((item: any) => (
         <TouchableOpacity
           key={item.uid}
           onPress={() => setSelectedDoctor(item)}
-          style={{ backgroundColor: selectedDoctor?.uid === item.uid ? "#2563EB" : "#fff", padding: 15, borderRadius: 10, marginBottom: 10 }}
+          style={{
+            backgroundColor:
+              selectedDoctor?.uid === item.uid ? "#2563EB" : "#fff",
+            padding: 15,
+            borderRadius: 10,
+            marginBottom: 10,
+          }}
         >
-          <Text style={{ color: selectedDoctor?.uid === item.uid ? "#fff" : "#000", fontWeight: "700" }}>
+          <Text
+            style={{
+              color: selectedDoctor?.uid === item.uid ? "#fff" : "#000",
+              fontWeight: "700",
+            }}
+          >
             👨‍⚕️ Dr. {item.name}
           </Text>
-          <Text style={{ color: selectedDoctor?.uid === item.uid ? "#E5E7EB" : "#666" }}>
+          <Text
+            style={{
+              color: selectedDoctor?.uid === item.uid ? "#E5E7EB" : "#666",
+            }}
+          >
             {item.specialization || "General Physician"}
           </Text>
         </TouchableOpacity>
@@ -144,14 +233,39 @@ export default function Consult() {
         <Text style={{ color: "#fff", fontWeight: "700" }}>Generate Slip</Text>
       </TouchableOpacity>
 
-      <SlipPopup visible={visible} data={slip} onClose={() => setVisible(false)} />
+      <SlipPopup
+        visible={visible}
+        data={slip}
+        onClose={() => setVisible(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: "center", backgroundColor: "#EEF5FF" },
-  title: { fontSize: 26, fontWeight: "800", marginBottom: 20, textAlign: "center" },
-  input: { backgroundColor: "#fff", padding: 12, borderRadius: 10, marginBottom: 10 },
-  btn: { backgroundColor: "#2563EB", padding: 15, borderRadius: 10, alignItems: "center", marginTop: 10 },
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: "center",
+    backgroundColor: "#EEF5FF",
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "800",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  input: {
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  btn: {
+    backgroundColor: "#2563EB",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
 });

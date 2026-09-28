@@ -1,644 +1,778 @@
 import { db } from "@/src/config/firebaseConfig";
 import { useAuth } from "@/src/context/AuthContext";
+import { calculatePrescribedQuantity } from "@/src/utils/prescriptionQuantity";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import {
-    addDoc,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    serverTimestamp,
-    updateDoc,
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function PrescriptionDetail() {
-    const { prescriptionId } = useLocalSearchParams();
-    const { user } = useAuth();
+  const { prescriptionId } = useLocalSearchParams();
+  const { user, profile } = useAuth();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [prescription, setPrescription] = useState<any>(null);
+
+  const [allMedicines, setAllMedicines] = useState<any[]>([]);
+
+  const [billItems, setBillItems] = useState<any[]>([]);
+  const normalizeMedicineName = (value: any) => {
+    return String(value || "")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "");
+  };
+
+  const normalizeSalt = (value: any) => {
+    return String(value || "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+  };
+
+  const findMedicineInInventory = (
+    prescriptionMedicine: any,
+    medicines: any[],
+  ) => {
+    const prescribedName = normalizeMedicineName(
+      prescriptionMedicine.medicineName,
+    );
+
+    const prescribedSalt = normalizeSalt(prescriptionMedicine.salt);
+
+    // 1. Exact medicine name
 
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    let match = medicines.find(
+      (m) => normalizeMedicineName(m.name) === prescribedName,
+    );
 
-    const [prescription, setPrescription] = useState<any>(null);
+    if (match) return match;
 
-    const [allMedicines, setAllMedicines] = useState<any[]>([]);
+    // 2. If prescription has salt, use name + salt
 
-    const [billItems, setBillItems] = useState<any[]>([]);
+    if (prescribedSalt) {
+      match = medicines.find(
+        (m) =>
+          normalizeSalt(m.salt) === prescribedSalt &&
+          (normalizeMedicineName(m.name).includes(prescribedName) ||
+            prescribedName.includes(normalizeMedicineName(m.name))),
+      );
+
+      if (match) return match;
+    }
+
+    // 3. Common small spelling difference
+
+    const candidates = medicines.filter((m) => {
+      const inventoryName = normalizeMedicineName(m.name);
 
-    useEffect(() => { load(); }, []);
+      return (
+        inventoryName.includes(prescribedName) ||
+        prescribedName.includes(inventoryName)
+      );
+    });
+
+    if (candidates.length === 1) {
+      return candidates[0];
+    }
+
+    return undefined;
+  };
+  // Kisi bhi string (e.g. "2", "2 Tablets", "3 Days") se pehla number nikalta hai
+  const parseNumber = (value: any, defaultValue: number = 1): number => {
+    const match = String(value ?? "").match(/\d+(\.\d+)?/);
+    if (!match) return defaultValue;
+    const num = Number(match[0]);
+    return isNaN(num) || num <= 0 ? defaultValue : num;
+  };
 
-    const load = async () => {
+  // const calculateTotalQuantity = (medicine: any) => {
+  //   // Per-dose quantity: doctor ne "quantity" field mein diya
+  //   // (e.g. "2" ya "2 Tablets" -> 2)
+  //   const perDose = parseNumber(medicine.quantity, 1);
 
-        // Prescription
+  //   // Din mein kitni baar lena hai: morning/afternoon/night
+  //   // checkboxes count karke nikalte hain
+  //   const timesPerDay =
+  //     (medicine.morning ? 1 : 0) +
+  //     (medicine.afternoon ? 1 : 0) +
+  //     (medicine.night ? 1 : 0);
 
-        const prescriptionSnap = await getDoc(
-            doc(db, "prescriptions", prescriptionId as string)
-        );
+  //   // Agar doctor ne koi timing select nahi ki, default 1 baar/din
+  //   const frequencyPerDay = timesPerDay > 0 ? timesPerDay : 1;
 
-        if (!prescriptionSnap.exists()) {
-            setLoading(false);
-            return;
-        }
+  //   // Duration: "3 Days" -> 3
+  //   const durationDays = parseNumber(medicine.duration, 1);
 
-        try {
+  //   return perDose * frequencyPerDay * durationDays;
+  // };
 
-            const prescriptionData = {
-                id: prescriptionSnap.id,
-                ...prescriptionSnap.data(),
-            } as any;
+  const load = async () => {
+    // Prescription
 
-            setPrescription(prescriptionData);
+    const prescriptionSnap = await getDoc(
+      doc(db, "prescriptions", prescriptionId as string),
+    );
 
-            // Inventory
+    if (!prescriptionSnap.exists()) {
+      setLoading(false);
+      return;
+    }
 
-            const medicineSnap = await getDocs(
-                collection(db, "medicines")
-            );
+    try {
+      const prescriptionData = {
+        id: prescriptionSnap.id,
+        ...prescriptionSnap.data(),
+      } as any;
 
-            const medicines = medicineSnap.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            })) as any[];
-
-            setAllMedicines(medicines);
+      setPrescription(prescriptionData);
 
-            // Prepare Bill Items
-
-            const items = (prescriptionData.medicines || []).map(
-                (medicine: any) => {
-                    const stockMedicine = medicines.find(
-                        (m) =>
-                            m.name?.toLowerCase() ===
-                            medicine.medicineName?.toLowerCase()
-                    );
+      // Inventory
 
-                    // Alternate Medicines
+      const medicineSnap = await getDocs(collection(db, "medicines"));
 
-                    const alternates = medicines.filter(
-                        (m) =>
-                            m.salt &&
-                            stockMedicine?.salt &&
-                            m.salt.toLowerCase() === stockMedicine.salt.toLowerCase() &&
-                            m.strength === stockMedicine.strength &&
-                            m.stock > 0 &&
-                            m.name !== stockMedicine.name
-                    );
+      const medicines = medicineSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as any[];
 
-                    return {
-                        medicineId: stockMedicine?.id,
+      setAllMedicines(medicines);
 
-                        originalName: medicine.medicineName,
+      // Prepare Bill Items
 
-                        selectedName: stockMedicine
-                            ? stockMedicine.name
-                            : medicine.medicineName,
+      const items = (prescriptionData.medicines || []).map((medicine: any) => {
+        const stockMedicine = findMedicineInInventory(medicine, medicines);
 
-                        dosage: medicine.dosage,
+        // TOTAL QUANTITY
 
-                        instructions: medicine.instructions,
+        const totalQuantity = calculatePrescribedQuantity(medicine);
+        const perDose = parseNumber(medicine.quantity, 1);
+        const timesPerDay =
+          (medicine.morning ? 1 : 0) +
+            (medicine.afternoon ? 1 : 0) +
+            (medicine.night ? 1 : 0) || 1;
+        const durationDays = parseNumber(medicine.duration, 1);
+        const quantityBreakdown = `${perDose} × ${timesPerDay}/day × ${durationDays} days`;
 
-                        qty: String(medicine.quantity || 1),
+        // ALTERNATES
+        //
+        // IMPORTANT:
+        // Only calculate/show alternatives when the
+        // prescribed medicine is unavailable.
 
-                        price: stockMedicine
-                            ? String(stockMedicine.price)
-                            : "0",
+        let alternates: any[] = [];
 
-                        stock: stockMedicine?.stock || 0,
+        const prescribedMedicineUnavailable =
+          !stockMedicine || Number(stockMedicine.stock || 0) < totalQuantity;
 
-                        inStock:
-                            stockMedicine &&
-                            stockMedicine.stock >=
-                            Number(medicine.quantity || 1),
+        if (prescribedMedicineUnavailable) {
+          const prescribedSalt = normalizeSalt(
+            medicine.salt || stockMedicine?.salt,
+          );
 
-                        alternateMedicines: alternates,
+          if (prescribedSalt) {
+            alternates = medicines.filter((m) => {
+              const sameSalt = normalizeSalt(m.salt) === prescribedSalt;
 
-                        replaced: false,
-                    };
-                }
-            );
-
-            setBillItems(items);
-        } catch (error) {
-            console.log(error);
-        }
-
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        load();
-    }, []);
-
-    const updateItem = (
-        index: number,
-        field: string,
-        value: any
-    ) => {
-        setBillItems((prev) =>
-            prev.map((item, i) =>
-                i === index
-                    ? {
-                        ...item,
-                        [field]: value,
-                    }
-                    : item
-            )
-        );
-    };
-    const replaceMedicine = (
-        index: number,
-        medicine: any
-    ) => {
-        setBillItems((prev) =>
-            prev.map((item, i) => {
-                if (i !== index) return item;
-
-                const alternates = allMedicines.filter(
-                    (m) =>
-                        m.salt?.toLowerCase() === medicine.salt?.toLowerCase() &&
-                        m.strength === medicine.strength &&
-                        m.stock > 0 &&
-                        m.id !== medicine.id
-                );
-
-                return {
-                    ...item,
-
-                    medicineId: medicine.id,
-
-                    selectedName: medicine.name,
-
-                    price: String(medicine.price),
-
-                    stock: medicine.stock,
-
-                    inStock: true,
-
-                    replaced: true,
-
-                    alternateMedicines: alternates,
-                };
-            })
-        );
-    };
-
-    const total = billItems.reduce((sum, item) => {
-        const qty = Number(item.qty) || 0;
-        const price = Number(item.price) || 0;
-
-        return sum + qty * price;
-    }, 0);
-
-    const validateStock = () => {
-        for (const item of billItems) {
-            const qty = Number(item.qty);
-
-            if (!item.inStock) {
-                Alert.alert(
-                    "Medicine Unavailable",
-                    `${item.selectedName} is out of stock.\nPlease select an alternate medicine.`
-                );
-                return false;
-            }
-
-            if (qty <= 0) {
-                Alert.alert(
-                    "Invalid Quantity",
-                    `Please enter a valid quantity for ${item.selectedName}.`
-                );
-                return false;
-            }
-
-            if (qty > item.stock) {
-                Alert.alert(
-                    "Insufficient Stock",
-                    `${item.selectedName} has only ${item.stock} item(s) available.`
-                );
-                return false;
-            }
-        }
-
-        return true;
-    };
-
-    const generateBill = async () => {
-        if (billItems.length === 0) {
-            Alert.alert("Error", "No medicines found.");
-            return;
-        }
-
-        if (!validateStock()) {
-            return;
-        }
-
-        setSaving(true);
-
-        try {
-            // Deduct stock
-
-            for (const item of billItems) {
-                const medicineRef = doc(
-                    db,
-                    "medicines",
-                    item.medicineId
-                );
-
-                const medicine = allMedicines.find(
-                    (m) => m.id === item.medicineId
-                );
-
-                if (!medicine) {
-                    throw new Error(
-                        `${item.selectedName} not found.`
-                    );
-                }
-
-                const remaining =
-                    Number(medicine.stock) -
-                    Number(item.qty);
-
-                if (remaining < 0) {
-                    throw new Error(
-                        `${item.selectedName} stock is insufficient.`
-                    );
-                }
-
-                await updateDoc(medicineRef, {
-                    stock: remaining,
-                });
-            }
-
-            // Save Bill
-
-            await addDoc(collection(db, "bills"), {
-                source: "counter",
-
-                prescriptionId: prescription.id,
-
-                userId: prescription.userId,
-
-                patientId: prescription.patientId,
-
-                patientName: prescription.patientName,
-
-                phone: prescription.phone,
-
-                doctorName: prescription.doctorName,
-
-                pharmacistId: user?.uid,
-
-                pharmacistName:
-                    user?.displayName ||
-                    user?.email,
-
-                items: billItems,
-
-                total,
-
-                status: "Paid",
-
-                createdAt: serverTimestamp(),
+              const isDifferentMedicine = stockMedicine
+                ? m.id !== stockMedicine.id
+                : true;
+
+              const enoughStock = Number(m.stock || 0) >= totalQuantity;
+
+              return sameSalt && isDifferentMedicine && enoughStock;
             });
-
-            // Update Prescription
-
-            await updateDoc(
-                doc(db, "prescriptions", prescription.id),
-                {
-                    dispensedAtPharmacy: true,
-                    dispensedAt: serverTimestamp(),
-                }
-            );
-            Alert.alert(
-                "Success",
-                "Bill generated successfully.",
-                [
-                    {
-                        text: "OK",
-                        onPress: () => {
-                            router.replace("/(pharmacy)");
-                        },
-                    },
-                ]
-            );
-        } catch (error: any) {
-            console.log(error);
-
-            Alert.alert(
-                "Billing Failed",
-                error?.message ||
-                "Unable to generate bill."
-            );
+          }
         }
 
-        setSaving(false);
-    };
+        return {
+          medicineId: stockMedicine?.id,
+          originalName: medicine.medicineName,
+          selectedName: stockMedicine?.name || medicine.medicineName,
+          dosage: medicine.dosage || "",
+          instructions: medicine.instructions || "",
+          prescribedQty: totalQuantity,
+          quantityBreakdown, // 👈 naya field
+          qty: String(totalQuantity),
+          price: stockMedicine ? String(stockMedicine.price || 0) : "0",
+          stock: stockMedicine ? Number(stockMedicine.stock || 0) : 0,
+          inStock:
+            !!stockMedicine &&
+            Number(stockMedicine.stock || 0) >= totalQuantity,
+          alternateMedicines: alternates,
+          replaced: false,
+        };
+      });
 
-    if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2563EB" /></View>;
-    if (!prescription) return <View style={styles.center}><Text>Prescription not found.</Text></View>;
+      setBillItems(items);
+    } catch (error) {
+      console.log(error);
+    }
 
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const updateItem = (index: number, field: string, value: any) => {
+    setBillItems((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [field]: value,
+            }
+          : item,
+      ),
+    );
+  };
+  const replaceMedicine = (index: number, medicine: any) => {
+    setBillItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const alternates = allMedicines.filter(
+          (m) =>
+            m.salt?.toLowerCase() === medicine.salt?.toLowerCase() &&
+            m.strength === medicine.strength &&
+            Number(m.stock || 0) >= Number(item.qty) &&
+            m.id !== medicine.id,
+        );
+
+        return {
+          ...item,
+
+          medicineId: medicine.id,
+
+          selectedName: medicine.name,
+
+          price: String(medicine.price),
+
+          stock: medicine.stock,
+
+          inStock: Number(medicine.stock || 0) >= Number(item.qty),
+          replaced: true,
+
+          alternateMedicines: alternates,
+        };
+      }),
+    );
+  };
+
+  const total = billItems.reduce((sum, item) => {
+    const qty = Number(item.qty) || 0;
+    const price = Number(item.price) || 0;
+
+    return sum + qty * price;
+  }, 0);
+
+  const validateStock = () => {
+    for (const item of billItems) {
+      const qty = Number(item.qty);
+      const stock = Number(item.stock || 0);
+
+      // Quantity valid honi chahiye
+      if (!Number.isInteger(qty) || qty <= 0) {
+        Alert.alert(
+          "Invalid Quantity",
+          `Please enter a valid quantity for ${item.selectedName}.`,
+        );
+        return false;
+      }
+
+      // Medicine inventory mein available nahi
+      if (!item.medicineId || stock <= 0) {
+        Alert.alert(
+          "Medicine Unavailable",
+          `${item.selectedName} is out of stock.\nPlease select an alternate medicine.`,
+        );
+        return false;
+      }
+
+      // Pharmacist requested quantity stock se zyada nahi ho sakti
+      if (qty > stock) {
+        Alert.alert(
+          "Insufficient Stock",
+          `${item.selectedName} has only ${stock} item(s) available.\n\nDoctor prescribed: ${item.prescribedQty}\nDispense quantity: ${qty}`,
+        );
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const generateBill = async () => {
+    if (billItems.length === 0) {
+      Alert.alert("Error", "No medicines found.");
+      return;
+    }
+
+    if (!validateStock()) {
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      // Deduct stock
+
+      for (const item of billItems) {
+        const medicineRef = doc(db, "medicines", item.medicineId);
+
+        const medicine = allMedicines.find((m) => m.id === item.medicineId);
+
+        if (!medicine) {
+          throw new Error(`${item.selectedName} not found.`);
+        }
+
+        const remaining = Number(medicine.stock) - Number(item.qty);
+
+        if (remaining < 0) {
+          throw new Error(`${item.selectedName} stock is insufficient.`);
+        }
+
+        await updateDoc(medicineRef, {
+          stock: remaining,
+        });
+      }
+
+      // Save Bill
+
+      await addDoc(collection(db, "bills"), {
+        source: "counter",
+
+        prescriptionId: prescription.id,
+
+        userId: prescription.userId,
+
+        patientId: prescription.patientId,
+
+        patientName: prescription.patientName,
+
+        phone: prescription.phone,
+
+        doctorName: prescription.doctorName,
+
+        pharmacistId: user?.uid,
+
+        pharmacistName:
+          profile?.name || user?.email?.split("@")[0] || "Pharmacist",
+        items: billItems,
+
+        total,
+
+        status: "Paid",
+
+        createdAt: serverTimestamp(),
+      });
+
+      // Update Prescription
+
+      await updateDoc(doc(db, "prescriptions", prescription.id), {
+        dispensedAtPharmacy: true,
+        dispensedAt: serverTimestamp(),
+      });
+      Alert.alert("Success", "Bill generated successfully.", [
+        {
+          text: "OK",
+          onPress: () => {
+            router.replace("/(pharmacy)");
+          },
+        },
+      ]);
+    } catch (error: any) {
+      console.log(error);
+
+      Alert.alert(
+        "Billing Failed",
+        error?.message || "Unable to generate bill.",
+      );
+    }
+
+    setSaving(false);
+  };
+
+  if (loading)
     return (
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>💊 Dispense Prescription</Text>
-                <Text style={styles.headerSubTitle}>{prescription.patientName}</Text>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#0D9488" />
+      </View>
+    );
+  if (!prescription)
+    return (
+      <View style={styles.center}>
+        <Text>Prescription not found.</Text>
+      </View>
+    );
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>💊 Dispense Prescription</Text>
+        <Text style={styles.headerSubTitle}>{prescription.patientName}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardHeading}>👤 Patient Info</Text>
+        <Text style={styles.infoText}>ID: {prescription.patientId}</Text>
+        <Text style={styles.infoText}>Phone: {prescription.phone}</Text>
+        <Text style={styles.infoText}>Doctor: {prescription.doctorName}</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardHeading}>💊 Medicines</Text>
+
+        {billItems.map((item, index) => (
+          <View key={index} style={styles.medRow}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text style={styles.medName}>{item.selectedName}</Text>
+
+              {item.inStock ? (
+                <View
+                  style={{
+                    backgroundColor: "#DCFCE7",
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 15,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#16A34A",
+                      fontWeight: "700",
+                      fontSize: 12,
+                    }}
+                  >
+                    IN STOCK
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    backgroundColor: "#FEE2E2",
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 15,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#DC2626",
+                      fontWeight: "700",
+                      fontSize: 12,
+                    }}
+                  >
+                    OUT OF STOCK
+                  </Text>
+                </View>
+              )}
             </View>
 
-            <View style={styles.card}>
-                <Text style={styles.cardHeading}>👤 Patient Info</Text>
-                <Text style={styles.infoText}>ID: {prescription.patientId}</Text>
-                <Text style={styles.infoText}>Phone: {prescription.phone}</Text>
-                <Text style={styles.infoText}>Doctor: {prescription.doctorName}</Text>
+            {item.replaced && (
+              <Text
+                style={{
+                  color: "#0D9488",
+                  marginTop: 5,
+                  fontWeight: "600",
+                }}
+              >
+                Replaced from {item.originalName}
+              </Text>
+            )}
+
+            <Text style={styles.medSub}>{item.dosage}</Text>
+
+            <Text style={styles.medSub}>{item.instructions}</Text>
+
+            <Text style={{ marginTop: 8, color: "#64748B" }}>
+              Doctor Prescribed : {item.prescribedQty}
+            </Text>
+
+            {item.quantityBreakdown && (
+              <Text style={{ marginTop: 3, color: "#94A3B8", fontSize: 12 }}>
+                ({item.quantityBreakdown})
+              </Text>
+            )}
+
+            <Text
+              style={{
+                marginTop: 5,
+                color: "#64748B",
+              }}
+            >
+              Available Stock : {item.stock}
+            </Text>
+            {item.stock < item.prescribedQty && item.stock > 0 && (
+              <Text
+                style={{
+                  marginTop: 5,
+                  color: "#DC2626",
+                  fontSize: 12,
+                  fontWeight: "600",
+                }}
+              >
+                ⚠️ Full prescribed quantity is not available
+              </Text>
+            )}
+            {/* Qty + Price */}
+
+            <View style={styles.rowInputs}>
+              <View
+                style={{
+                  flex: 1,
+                  marginRight: 10,
+                }}
+              >
+                <Text style={styles.label}> Dispense Quantity</Text>
+
+                <TextInput
+                  value={item.qty}
+                  keyboardType="number-pad"
+                  onChangeText={(v) => updateItem(index, "qty", v)}
+                  style={styles.input}
+                />
+              </View>
+
+              <View
+                style={{
+                  flex: 1,
+                }}
+              >
+                <Text style={styles.label}>Price</Text>
+
+                <TextInput
+                  value={item.price}
+                  keyboardType="number-pad"
+                  onChangeText={(v) => updateItem(index, "price", v)}
+                  style={styles.input}
+                />
+              </View>
             </View>
-            <View style={styles.card}>
-                <Text style={styles.cardHeading}>
-                    💊 Medicines
+
+            {/* Alternate Medicines */}
+
+            {!item.inStock && item.alternateMedicines.length > 0 && (
+              <View
+                style={{
+                  marginTop: 18,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#0D9488",
+                    fontWeight: "700",
+                    marginBottom: 10,
+                  }}
+                >
+                  Suggested Alternatives
                 </Text>
 
-                {billItems.map((item, index) => (
-                    <View key={index} style={styles.medRow}>
+                {item.alternateMedicines.map((alt: any) => (
+                  <TouchableOpacity
+                    key={alt.id}
+                    style={{
+                      backgroundColor: "#EFF6FF",
+                      borderRadius: 12,
+                      padding: 12,
+                      marginBottom: 10,
+                    }}
+                    onPress={() => replaceMedicine(index, alt)}
+                  >
+                    <Text
+                      style={{
+                        fontWeight: "700",
+                        color: "#0D9488",
+                      }}
+                    >
+                      {alt.name}
+                    </Text>
 
-                        <View
-                            style={{
-                                flexDirection: "row",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                            }}
-                        >
-                            <Text style={styles.medName}>
-                                {item.selectedName}
-                            </Text>
+                    <Text
+                      style={{
+                        color: "#64748B",
+                        marginTop: 4,
+                      }}
+                    >
+                      Salt : {alt.salt}
+                    </Text>
 
-                            {item.inStock ? (
-                                <View
-                                    style={{
-                                        backgroundColor: "#DCFCE7",
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 5,
-                                        borderRadius: 15,
-                                    }}
-                                >
-                                    <Text
-                                        style={{
-                                            color: "#16A34A",
-                                            fontWeight: "700",
-                                            fontSize: 12,
-                                        }}
-                                    >
-                                        IN STOCK
-                                    </Text>
-                                </View>
-                            ) : (
-                                <View
-                                    style={{
-                                        backgroundColor: "#FEE2E2",
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 5,
-                                        borderRadius: 15,
-                                    }}
-                                >
-                                    <Text
-                                        style={{
-                                            color: "#DC2626",
-                                            fontWeight: "700",
-                                            fontSize: 12,
-                                        }}
-                                    >
-                                        OUT OF STOCK
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
+                    <Text
+                      style={{
+                        color: "#16A34A",
+                        marginTop: 4,
+                      }}
+                    >
+                      Stock : {alt.stock}
+                    </Text>
 
-                        {item.replaced && (
-                            <Text
-                                style={{
-                                    color: "#2563EB",
-                                    marginTop: 5,
-                                    fontWeight: "600",
-                                }}
-                            >
-                                Replaced from {item.originalName}
-                            </Text>
-                        )}
-
-                        <Text style={styles.medSub}>
-                            {item.dosage}
-                        </Text>
-
-                        <Text style={styles.medSub}>
-                            {item.instructions}
-                        </Text>
-
-                        <Text
-                            style={{
-                                marginTop: 8,
-                                color: "#64748B",
-                            }}
-                        >
-                            Available Stock : {item.stock}
-                        </Text>
-
-                        {/* Qty + Price */}
-
-                        <View style={styles.rowInputs}>
-
-                            <View
-                                style={{
-                                    flex: 1,
-                                    marginRight: 10,
-                                }}
-                            >
-                                <Text style={styles.label}>
-                                    Quantity
-                                </Text>
-
-                                <TextInput
-                                    value={item.qty}
-                                    keyboardType="number-pad"
-                                    onChangeText={(v) =>
-                                        updateItem(index, "qty", v)
-                                    }
-                                    style={styles.input}
-                                />
-                            </View>
-
-                            <View
-                                style={{
-                                    flex: 1,
-                                }}
-                            >
-                                <Text style={styles.label}>
-                                    Price
-                                </Text>
-
-                                <TextInput
-                                    value={item.price}
-                                    keyboardType="number-pad"
-                                    onChangeText={(v) =>
-                                        updateItem(index, "price", v)
-                                    }
-                                    style={styles.input}
-                                />
-                            </View>
-
-                        </View>
-
-                        {/* Alternate Medicines */}
-
-                        {!item.inStock &&
-                            item.alternateMedicines.length > 0 && (
-                                <View
-                                    style={{
-                                        marginTop: 18,
-                                    }}
-                                >
-                                    <Text
-                                        style={{
-                                            color: "#2563EB",
-                                            fontWeight: "700",
-                                            marginBottom: 10,
-                                        }}
-                                    >
-                                        Suggested Alternatives
-                                    </Text>
-
-                                    {item.alternateMedicines.map(
-                                        (alt: any) => (
-                                            <TouchableOpacity
-                                                key={alt.id}
-                                                style={{
-                                                    backgroundColor: "#EFF6FF",
-                                                    borderRadius: 12,
-                                                    padding: 12,
-                                                    marginBottom: 10,
-                                                }}
-                                                onPress={() =>
-                                                    replaceMedicine(index, alt)
-                                                }
-                                            >
-                                                <Text
-                                                    style={{
-                                                        fontWeight: "700",
-                                                        color: "#1E3A8A",
-                                                    }}
-                                                >
-                                                    {alt.name}
-                                                </Text>
-
-                                                <Text
-                                                    style={{
-                                                        color: "#64748B",
-                                                        marginTop: 4,
-                                                    }}
-                                                >
-                                                    Salt : {alt.salt}
-                                                </Text>
-
-                                                <Text
-                                                    style={{
-                                                        color: "#16A34A",
-                                                        marginTop: 4,
-                                                    }}
-                                                >
-                                                    Stock : {alt.stock}
-                                                </Text>
-
-                                                <Text
-                                                    style={{
-                                                        color: "#2563EB",
-                                                        marginTop: 8,
-                                                        fontWeight: "700",
-                                                    }}
-                                                >
-                                                    Replace Medicine
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )
-                                    )}
-                                </View>
-                            )}
-
-                        {!item.inStock &&
-                            item.alternateMedicines.length === 0 && (
-                                <View
-                                    style={{
-                                        backgroundColor: "#FEF2F2",
-                                        padding: 14,
-                                        borderRadius: 12,
-                                        marginTop: 15,
-                                    }}
-                                >
-                                    <Text
-                                        style={{
-                                            color: "#DC2626",
-                                            fontWeight: "700",
-                                        }}
-                                    >
-                                        No Alternate Medicine Available
-                                    </Text>
-
-                                    <Text
-                                        style={{
-                                            color: "#7F1D1D",
-                                            marginTop: 5,
-                                        }}
-                                    >
-                                        Bill cannot be generated until this
-                                        medicine is available.
-                                    </Text>
-                                </View>
-                            )}
-
-                    </View>
+                    <Text
+                      style={{
+                        color: "#0D9488",
+                        marginTop: 8,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Replace Medicine
+                    </Text>
+                  </TouchableOpacity>
                 ))}
-            </View>
+              </View>
+            )}
 
-            <View style={styles.totalCard}>
-                <Text style={styles.totalLabel}>Total Bill</Text>
-                <Text style={styles.totalValue}>Rs {total.toFixed(0)}</Text>
-            </View>
+            {!item.inStock && item.alternateMedicines.length === 0 && (
+              <View
+                style={{
+                  backgroundColor: "#FEF2F2",
+                  padding: 14,
+                  borderRadius: 12,
+                  marginTop: 15,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#DC2626",
+                    fontWeight: "700",
+                  }}
+                >
+                  No Alternate Medicine Available
+                </Text>
 
-            <TouchableOpacity style={styles.generateBtn} onPress={generateBill} disabled={saving}>
-                {saving ? <ActivityIndicator color="#fff" /> : (
-                    <><Ionicons name="receipt" size={20} color="#fff" /><Text style={styles.generateBtnText}>Generate Bill & Dispense</Text></>
-                )}
-            </TouchableOpacity>
-            <View style={{ height: 60 }} />
-        </ScrollView>
-    );
+                <Text
+                  style={{
+                    color: "#7F1D1D",
+                    marginTop: 5,
+                  }}
+                >
+                  Bill cannot be generated until this medicine is available.
+                </Text>
+              </View>
+            )}
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.totalCard}>
+        <Text style={styles.totalLabel}>Total Bill</Text>
+        <Text style={styles.totalValue}>Rs {total.toFixed(0)}</Text>
+      </View>
+
+      <TouchableOpacity
+        style={styles.generateBtn}
+        onPress={generateBill}
+        disabled={saving}
+      >
+        {saving ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <Ionicons name="receipt" size={20} color="#fff" />
+            <Text style={styles.generateBtnText}>Generate Bill & Dispense</Text>
+          </>
+        )}
+      </TouchableOpacity>
+      <View style={{ height: 60 }} />
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#F4F7FC" },
-    center: { flex: 1, justifyContent: "center", alignItems: "center" },
-    header: { backgroundColor: "#2563EB", paddingTop: 55, paddingBottom: 25, paddingHorizontal: 20, borderBottomLeftRadius: 25, borderBottomRightRadius: 25 },
-    headerTitle: { color: "#fff", fontSize: 22, fontWeight: "700" },
-    headerSubTitle: { color: "#E5E7EB", marginTop: 5 },
-    card: { backgroundColor: "#fff", margin: 15, borderRadius: 15, padding: 15, elevation: 3 },
-    cardHeading: { fontSize: 17, fontWeight: "700", marginBottom: 12, color: "#1F2937" },
-    infoText: { color: "#374151", marginBottom: 5 },
-    medRow: { borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 12, marginTop: 12 },
-    medName: { fontSize: 16, fontWeight: "700", color: "#111827" },
-    medSub: { color: "#6B7280", marginTop: 3, fontSize: 13 },
-    warning: { color: "#DC2626", marginTop: 5, fontSize: 12, fontWeight: "600" },
-    rowInputs: { flexDirection: "row", marginTop: 10 },
-    label: { color: "#6B7280", marginBottom: 5, fontSize: 13, fontWeight: "600" },
-    input: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8, padding: 10, backgroundColor: "#fff" },
-    totalCard: { backgroundColor: "#fff", marginHorizontal: 15, borderRadius: 15, padding: 18, flexDirection: "row", justifyContent: "space-between", alignItems: "center", elevation: 3 },
-    totalLabel: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-    totalValue: { fontSize: 24, fontWeight: "800", color: "#2563EB" },
-    generateBtn: { backgroundColor: "#16A34A", marginHorizontal: 15, marginTop: 20, height: 55, borderRadius: 12, flexDirection: "row", justifyContent: "center", alignItems: "center" },
-    generateBtnText: { color: "#fff", fontSize: 16, fontWeight: "700", marginLeft: 8 },
+  container: { flex: 1, backgroundColor: "#F4F7FC" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: {
+    backgroundColor: "#0D9488",
+    paddingTop: 55,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+  },
+  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "700" },
+  headerSubTitle: { color: "#E5E7EB", marginTop: 5 },
+  card: {
+    backgroundColor: "#fff",
+    margin: 15,
+    borderRadius: 15,
+    padding: 15,
+    elevation: 3,
+  },
+  cardHeading: {
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 12,
+    color: "#1F2937",
+  },
+  infoText: { color: "#374151", marginBottom: 5 },
+  medRow: {
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  medName: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  medSub: { color: "#6B7280", marginTop: 3, fontSize: 13 },
+  warning: { color: "#DC2626", marginTop: 5, fontSize: 12, fontWeight: "600" },
+  rowInputs: { flexDirection: "row", marginTop: 10 },
+  label: { color: "#6B7280", marginBottom: 5, fontSize: 13, fontWeight: "600" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: "#fff",
+  },
+  totalCard: {
+    backgroundColor: "#fff",
+    marginHorizontal: 15,
+    borderRadius: 15,
+    padding: 18,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    elevation: 3,
+  },
+  totalLabel: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
+  totalValue: { fontSize: 24, fontWeight: "800", color: "#0D9488" },
+  generateBtn: {
+    backgroundColor: "#16A34A",
+    marginHorizontal: 15,
+    marginTop: 20,
+    height: 55,
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  generateBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
 });
