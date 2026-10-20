@@ -24,6 +24,7 @@
     "expo-keep-awake": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-router": "~6.0.23",
+    "expo-speech-recognition": "^58.0.0",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
@@ -51,5 +52,10 @@
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "trustedDependencies": [
+    "@firebase/util",
+    "protobufjs",
+    "unrs-resolver"
+  ]
 }

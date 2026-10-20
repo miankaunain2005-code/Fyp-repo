@@ -13,7 +13,7 @@ import {
   serverTimestamp,
   where,
 } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -32,7 +32,7 @@ export default function CheckoutScreen() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
-
+  const busy = useRef(false);
   // Delivery information
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [phone, setPhone] = useState("");
@@ -78,103 +78,79 @@ export default function CheckoutScreen() {
 
   // Final order creation
   const placeOrder = async () => {
+    if (busy.current) return;
+
     if (!phone.trim()) {
       Alert.alert("Phone Number Required", "Please enter your phone number.");
       return;
     }
-
     if (!address.trim()) {
       Alert.alert("Address Required", "Please enter your delivery address.");
       return;
     }
 
+    busy.current = true;
     setPlacing(true);
 
     try {
-      const userData = await getUserById(user?.uid || "");
+      const userData: any = await getUserById(user?.uid || "");
 
-      // BILL / ORDER CREATE
       const orderRef = await addDoc(collection(db, "orders"), {
         source: "online",
-
         userId: user?.uid || "",
-
         patientId: userData?.patientId || "",
-
         patientName: userData?.name || user?.displayName || "",
-
         patientPhone: phone.trim(),
-
         deliveryAddress: address.trim(),
-
         pharmacyName: "MediCare AI Pharmacy",
-
         pharmacyPhone: "03001234567",
-
         items: cart.map((item) => ({
           name: item.name,
-
           salt: item.salt || "",
-
           strength: item.strength || "",
-
           requestedPrice: Number(item.price),
-
           qty: Number(item.quantity) || 1,
-
           medicineId: item.medicineId || "",
         })),
-
         requestedTotal: total,
-
         status: "Placed",
-
         createdAt: serverTimestamp(),
       });
 
-      // Clear cart
       for (const item of cart) {
         await deleteDoc(doc(db, "cart", item.id));
       }
 
-      // Close modal
+      setCart([]);
       setShowDeliveryModal(false);
 
       Alert.alert(
         "Order Placed ✅",
         "Your order has been placed successfully. Pharmacy will process your order.",
         [
-          {
-            text: "OK",
-            onPress: () => router.push("/(main)/order-history"),
-          },
+          { text: "OK", onPress: () => router.replace("/(main)") },
           {
             text: "View Order",
             onPress: () =>
               router.replace({
                 pathname: "/(main)/order-success",
-                params: {
-                  orderId: orderRef.id,
-                },
+                params: { orderId: orderRef.id },
               }),
           },
         ],
       );
     } catch (error: any) {
-      console.log("=== ORDER ERROR ===");
-      console.log("Code:", error.code);
-      console.log("Message:", error.message);
-
-      Alert.alert("Error", error.message || "Failed to place order.");
+      console.log("ORDER ERROR:", error?.code, error?.message);
+      Alert.alert("Error", error?.message || "Failed to place order.");
     } finally {
+      busy.current = false;
       setPlacing(false);
     }
   };
-
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   }
@@ -301,7 +277,7 @@ export default function CheckoutScreen() {
               disabled={placing}
             >
               {placing ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="#0D9488" />
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={22} color="#fff" />
@@ -379,7 +355,7 @@ const styles = StyleSheet.create({
 
   price: {
     fontWeight: "700",
-    color: "#2563EB",
+    color: "#0D9488",
   },
 
   totalBox: {
@@ -400,7 +376,7 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#2563EB",
+    color: "#0D9488",
   },
 
   placeBtn: {

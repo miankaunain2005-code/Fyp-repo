@@ -90,7 +90,7 @@ export default function OnlineOrders() {
       case "Processing":
         return {
           backgroundColor: "#DBEAFE",
-          color: "#2563EB",
+          color: "#0D9488",
         };
 
       case "Dispensed":
@@ -168,7 +168,7 @@ export default function OnlineOrders() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#2563EB"
+          color="#0D9488"
           style={{ marginTop: 80 }}
         />
       ) : filteredOrders.length === 0 ? (
@@ -204,7 +204,7 @@ export default function OnlineOrders() {
 
               <View style={styles.cardTop}>
                 <View style={styles.avatar}>
-                  <Ionicons name="person" size={26} color="#2563EB" />
+                  <Ionicons name="person" size={26} color="#0D9488" />
                 </View>
 
                 <View
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 25,
     paddingHorizontal: 20,
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     marginTop: 15,
     height: 45,
     borderRadius: 10,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",

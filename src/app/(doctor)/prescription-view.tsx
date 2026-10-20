@@ -47,7 +47,7 @@ export default function DoctorPrescriptionView() {
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   }
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 25,
     paddingHorizontal: 20,

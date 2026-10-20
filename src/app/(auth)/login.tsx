@@ -2,7 +2,7 @@ import imagepath from "@/src/constraints/imagepath";
 import { useAuth } from "@/src/context/AuthContext";
 import { findEmailForLogin } from "@/src/utils/firestoreService";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,24 +15,12 @@ import {
 } from "react-native";
 
 export default function LoginScreen() {
-  const { login, role } = useAuth();
+  const { login, } = useAuth();
   const [identifier, setIdentifier] = useState(""); // email / name / phone
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!role) return;
 
-    if (role === "patient") {
-      router.replace("/(main)");
-    } else if (role === "doctor") {
-      router.replace("/(doctor)");
-    } else if (role === "pharmacy") {
-      router.replace("/(pharmacy)");
-    } else if (role === "reception") {
-      router.replace("/(reception)");
-    }
-  }, [role]);
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
@@ -91,7 +79,7 @@ export default function LoginScreen() {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#0D9488" />
         ) : (
           <Text style={styles.btnText}>Login</Text>
         )}

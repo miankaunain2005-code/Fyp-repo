@@ -161,7 +161,7 @@ export default function OrderFromPrescription() {
   if (loading)
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   if (!prescription)
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   price: { color: "#16A34A", fontWeight: "700", marginTop: 6 },
   notFound: { color: "#DC2626", fontWeight: "600", marginTop: 6 },
   addBtn: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     marginTop: 12,
     height: 44,
     borderRadius: 10,

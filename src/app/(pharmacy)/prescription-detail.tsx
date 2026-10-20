@@ -12,7 +12,7 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -30,7 +30,7 @@ export default function PrescriptionDetail() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const busy = useRef(false);
   const [prescription, setPrescription] = useState<any>(null);
 
   const [allMedicines, setAllMedicines] = useState<any[]>([]);
@@ -169,8 +169,8 @@ export default function PrescriptionDetail() {
         const perDose = parseNumber(medicine.quantity, 1);
         const timesPerDay =
           (medicine.morning ? 1 : 0) +
-            (medicine.afternoon ? 1 : 0) +
-            (medicine.night ? 1 : 0) || 1;
+          (medicine.afternoon ? 1 : 0) +
+          (medicine.night ? 1 : 0) || 1;
         const durationDays = parseNumber(medicine.duration, 1);
         const quantityBreakdown = `${perDose} × ${timesPerDay}/day × ${durationDays} days`;
 
@@ -231,19 +231,16 @@ export default function PrescriptionDetail() {
 
     setLoading(false);
   };
-
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, [prescriptionId]);
 
   const updateItem = (index: number, field: string, value: any) => {
     setBillItems((prev) =>
       prev.map((item, i) =>
         i === index
           ? {
-              ...item,
-              [field]: value,
-            }
+            ...item,
+            [field]: value,
+          }
           : item,
       ),
     );
@@ -324,94 +321,74 @@ export default function PrescriptionDetail() {
   };
 
   const generateBill = async () => {
+    if (busy.current) return;
+
     if (billItems.length === 0) {
       Alert.alert("Error", "No medicines found.");
       return;
     }
-
-    if (!validateStock()) {
+    if (prescription?.dispensedAtPharmacy) {
+      Alert.alert(
+        "Already Dispensed",
+        "Is prescription ka bill pehle ban chuka hai.",
+      );
       return;
     }
+    if (!validateStock()) return;
 
+    busy.current = true;
     setSaving(true);
 
     try {
-      // Deduct stock
-
       for (const item of billItems) {
-        const medicineRef = doc(db, "medicines", item.medicineId);
-
         const medicine = allMedicines.find((m) => m.id === item.medicineId);
-
-        if (!medicine) {
-          throw new Error(`${item.selectedName} not found.`);
-        }
+        if (!medicine) throw new Error(`${item.selectedName} not found.`);
 
         const remaining = Number(medicine.stock) - Number(item.qty);
-
         if (remaining < 0) {
           throw new Error(`${item.selectedName} stock is insufficient.`);
         }
 
-        await updateDoc(medicineRef, {
+        await updateDoc(doc(db, "medicines", item.medicineId), {
           stock: remaining,
         });
       }
 
-      // Save Bill
-
       await addDoc(collection(db, "bills"), {
         source: "counter",
-
         prescriptionId: prescription.id,
-
-        userId: prescription.userId,
-
+        userId: prescription.userId || "",
         patientId: prescription.patientId,
-
         patientName: prescription.patientName,
-
         phone: prescription.phone,
-
         doctorName: prescription.doctorName,
-
         pharmacistId: user?.uid,
-
         pharmacistName:
           profile?.name || user?.email?.split("@")[0] || "Pharmacist",
         items: billItems,
-
         total,
-
         status: "Paid",
-
         createdAt: serverTimestamp(),
       });
-
-      // Update Prescription
 
       await updateDoc(doc(db, "prescriptions", prescription.id), {
         dispensedAtPharmacy: true,
         dispensedAt: serverTimestamp(),
       });
+
       Alert.alert("Success", "Bill generated successfully.", [
-        {
-          text: "OK",
-          onPress: () => {
-            router.replace("/(pharmacy)");
-          },
-        },
+        { text: "OK", onPress: () => router.replace("/(pharmacy)") },
       ]);
     } catch (error: any) {
       console.log(error);
-
       Alert.alert(
         "Billing Failed",
         error?.message || "Unable to generate bill.",
       );
+    } finally {
+      busy.current = false;
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
   if (loading)
@@ -689,7 +666,7 @@ export default function PrescriptionDetail() {
         disabled={saving}
       >
         {saving ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#0D9488" />
         ) : (
           <>
             <Ionicons name="receipt" size={20} color="#fff" />

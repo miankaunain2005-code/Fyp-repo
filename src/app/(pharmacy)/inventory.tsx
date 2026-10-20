@@ -79,13 +79,13 @@ export default function InventoryScreen() {
             style={styles.menuBtn}
             onPress={() => setDrawerVisible(true)}
           >
-            <Ionicons name="menu" size={24} color="#2563EB" />
+            <Ionicons name="menu" size={24} color="#0D9488" />
           </TouchableOpacity>
         </View>
 
         {/* Info banner — hospital policy reminder
         <View style={styles.infoBanner}>
-          <Ionicons name="information-circle" size={20} color="#2563EB" />
+          <Ionicons name="information-circle" size={20} color="#0D9488" />
           <Text style={styles.infoBannerText}>
             Yeh screen sirf stock check karne ke liye hai. Koi bhi medicine bina
             prescription dispense nahi hoti — bill sirf{" "}
@@ -97,7 +97,7 @@ export default function InventoryScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Ionicons name="medkit" size={28} color="#2563EB" />
+            <Ionicons name="medkit" size={28} color="#0D9488" />
             <Text style={styles.statValue}>{medicines.length}</Text>
             <Text style={styles.statLabel}>Medicines</Text>
           </View>
@@ -137,7 +137,7 @@ export default function InventoryScreen() {
         {loading ? (
           <ActivityIndicator
             size="large"
-            color="#2563EB"
+            color="#0D9488"
             style={{ marginTop: 40 }}
           />
         ) : (
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  logo: { fontSize: 28, fontWeight: "700", color: "#1E3A8A" },
+  logo: { fontSize: 28, fontWeight: "700", color: "#157e75" },
   subLogo: { color: "#64748B", marginTop: 4, fontSize: 13, maxWidth: 220 },
   menuBtn: {
     width: 50,
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: "row", justifyContent: "space-between" },
   medName: { fontSize: 18, fontWeight: "700", color: "#0F172A" },
-  medSalt: { color: "#2563EB", marginTop: 4, fontWeight: "600" },
+  medSalt: { color: "#0D9488", marginTop: 4, fontWeight: "600" },
   medInfo: { color: "#64748B", marginTop: 1 },
   inBadge: {
     backgroundColor: "#DCFCE7",

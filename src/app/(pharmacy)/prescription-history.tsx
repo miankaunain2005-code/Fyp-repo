@@ -131,7 +131,7 @@ export default function PrescriptionHistory() {
         {loading ? (
           <ActivityIndicator
             size="large"
-            color="#2563EB"
+            color="#0D9488"
             style={{ marginTop: 80 }}
           />
         ) : filteredData.length === 0 ? (

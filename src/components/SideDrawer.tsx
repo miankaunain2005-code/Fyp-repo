@@ -64,9 +64,9 @@ export default function SideDrawer({
       <Pressable style={styles.overlay} onPress={onClose} />
 
       <View style={styles.drawer}>
-        <View style={[styles.profileSection, { backgroundColor: accentColor }]}>
+        <View style={[styles.profileSection, { backgroundColor: "#0D9488" }]}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={38} color={accentColor} />
+            <Ionicons name="person" size={38} color="#0D9488" />
           </View>
           <Text style={styles.name} numberOfLines={1}>
             {name}

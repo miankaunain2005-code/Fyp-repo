@@ -1,7 +1,9 @@
+import GenderPicker from "@/src/components/GenderPicker";
 import SlipPopup from "@/src/components/SlipPopup";
 import { useAuth } from "@/src/context/AuthContext";
 import {
   createAppointment,
+  findPendingDuplicate,
   getDoctors,
   getUserById,
 } from "@/src/utils/firestoreService";
@@ -10,12 +12,15 @@ import {
   createPatient,
   findPatient,
   generatePatientId,
+  generateToken,
   getPatient,
   updatePatient,
 } from "@/src/utils/patientService";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,6 +29,8 @@ import {
 } from "react-native";
 
 export default function Consult() {
+  const { user } = useAuth();
+
   const [visible, setVisible] = useState(false);
   const [name, setName] = useState("");
   const [DOB, setDOB] = useState("");
@@ -32,9 +39,11 @@ export default function Consult() {
   const [age, setAge] = useState("");
   const [bookingFor, setBookingFor] = useState<"self" | "other">("self");
   const [slip, setSlip] = useState<any>(null);
-  const { user } = useAuth();
   const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+
+  const busy = useRef(false); // foran lock (double tap rokne ke liye)
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadPatient = async () => {
@@ -49,7 +58,7 @@ export default function Consult() {
       if (!user) return;
       const userData = await getUserById(user.uid);
       if (!userData?.patientId) return;
-      const patient = await getPatient(userData.patientId);
+      const patient: any = await getPatient(userData.patientId);
       if (!patient) return;
       setName(patient.name || "");
       setDOB(patient.DOB || "");
@@ -66,57 +75,68 @@ export default function Consult() {
     setDoctors(data);
   };
 
-  const generateSlip = async () => {
+  const doGenerate = async () => {
     if (!selectedDoctor) {
-      alert("Please select a doctor");
+      Alert.alert("Required", "Please select a doctor");
       return;
     }
     if (!name || !DOB || !phone || !gender || !age) {
-      alert("Please fill all fields");
+      Alert.alert("Required", "Please fill all fields");
+      return;
+    }
+    if (!user) {
+      Alert.alert("Login", "Please login first");
       return;
     }
 
     let patientId = "";
 
     if (bookingFor === "self") {
-      if (!user) {
-        alert("Please login first");
-        return;
-      }
-      const userData = await getUserById(user.uid);
+      const userData: any = await getUserById(user.uid);
       if (!userData) {
-        alert("User not found");
+        Alert.alert("Error", "User not found");
         return;
       }
       patientId = userData.patientId;
       await updatePatient(patientId, { name, phone, gender, DOB, age });
     } else {
-      // 👇 Ab age bhi pass ho raha hai match check ke liye
-      const patient = await findPatient(phone, name, gender, DOB, age);
+      const patient = await findPatient(phone, name, gender, DOB);
 
       if (patient) {
-        // Existing patient mila — user ko batao
         patientId = patient.patientId;
         Alert.alert(
           "Existing Patient Found ✅",
-          `Ye patient pehle se exist karta hai. Purani Patient ID (${patientId}) use ki ja rahi hai.`,
+          `Ye patient pehle se registered hai. Purani Patient ID (${patientId}) use ho rahi hai.`,
         );
       } else {
-        // Naya patient — nayi ID banao
         patientId = await generatePatientId();
         await createPatient({ patientId, name, phone, gender, DOB, age });
         Alert.alert(
           "New Patient Registered 🆕",
-          `Nayi Patient ID generate hui hai: ${patientId}`,
+          `Nayi Patient ID bani hai: ${patientId}`,
         );
       }
     }
 
-    const token = "TKN-" + Math.floor(1000 + Math.random() * 9000);
-    const data = {
+    // Duplicate check: aaj, usi doctor ke saath, pending
+    const dup = await findPendingDuplicate(
+      "userId",
+      user.uid,
+      patientId,
+      selectedDoctor.uid,
+    );
+    if (dup) {
+      Alert.alert(
+        "Appointment Pehle Se Hai",
+        `${name} ki ${selectedDoctor.name} ke saath aaj ki appointment pehle se maujood hai (Token: ${dup.token}).`,
+      );
+      return;
+    }
+
+    const token = await generateToken(); const data = {
       token,
       patientId,
-      userId: user?.uid,
+      userId: user.uid,
       name,
       DOB,
       phone,
@@ -135,20 +155,42 @@ export default function Consult() {
       await createAppointment(data);
       setSlip(data);
       setVisible(true);
-      setName("");
-      setDOB("");
-      setPhone("");
-      setGender("");
-      setAge("");
+      if (bookingFor === "other") {
+        setName("");
+        setDOB("");
+        setPhone("");
+        setGender("");
+        setAge("");
+      }
+      setSelectedDoctor(null);
     } catch (error) {
       console.log(error);
-      alert("Firestore save failed");
+      Alert.alert("Error", "Appointment save nahi ho saki.");
+    }
+  };
+
+  const generateSlip = async () => {
+    if (busy.current) return; // dusra tap ignore
+    busy.current = true;
+    setSaving(true);
+    try {
+      await doGenerate();
+    } catch (e) {
+      console.log(e);
+      Alert.alert("Error", "Kuch masla hua. Dobara try karein.");
+    } finally {
+      busy.current = false;
+      setSaving(false);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
+    >
       <Text style={styles.title}>Consult Doctor</Text>
+
       <View style={{ marginBottom: 15 }}>
         <Text style={{ fontWeight: "700", marginBottom: 10 }}>Booking For</Text>
         <TouchableOpacity onPress={() => setBookingFor("self")}>
@@ -168,7 +210,7 @@ export default function Consult() {
       <TextInput
         placeholder="Date of Birth (DD-MM-YYYY)"
         value={DOB}
-        onChangeText={(text) => setDOB(formatDOBInput(text))}
+        onChangeText={(t) => setDOB(formatDOBInput(t))}
         keyboardType="number-pad"
         maxLength={10}
         style={styles.input}
@@ -176,17 +218,12 @@ export default function Consult() {
       <TextInput
         placeholder="Phone (03XX-XXXXXXX)"
         value={phone}
-        onChangeText={(text) => setPhone(formatPhoneInput(text))}
+        onChangeText={(t) => setPhone(formatPhoneInput(t))}
         keyboardType="number-pad"
         maxLength={12}
         style={styles.input}
       />
-      <TextInput
-        placeholder="Gender"
-        value={gender}
-        onChangeText={setGender}
-        style={styles.input}
-      />
+      <GenderPicker value={gender} onChange={setGender} />
       <TextInput
         placeholder="Age"
         value={age}
@@ -205,7 +242,7 @@ export default function Consult() {
           onPress={() => setSelectedDoctor(item)}
           style={{
             backgroundColor:
-              selectedDoctor?.uid === item.uid ? "#2563EB" : "#fff",
+              selectedDoctor?.uid === item.uid ? "#0D9488" : "#fff",
             padding: 15,
             borderRadius: 10,
             marginBottom: 10,
@@ -229,8 +266,18 @@ export default function Consult() {
         </TouchableOpacity>
       ))}
 
-      <TouchableOpacity style={styles.btn} onPress={generateSlip}>
-        <Text style={{ color: "#fff", fontWeight: "700" }}>Generate Slip</Text>
+      <TouchableOpacity
+        style={[styles.btn, saving && { opacity: 0.6 }]}
+        onPress={generateSlip}
+        disabled={saving}
+      >
+        {saving ? (
+          <ActivityIndicator color="#0D9488" />
+        ) : (
+          <Text style={{ color: "#fff", fontWeight: "700" }}>
+            Generate Slip
+          </Text>
+        )}
       </TouchableOpacity>
 
       <SlipPopup
@@ -238,21 +285,17 @@ export default function Consult() {
         data={slip}
         onClose={() => setVisible(false)}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "center",
-    backgroundColor: "#EEF5FF",
-  },
+  container: { flex: 1, backgroundColor: "#EEF5FF" },
   title: {
     fontSize: 26,
     fontWeight: "800",
     marginBottom: 20,
+    marginTop: 40,
     textAlign: "center",
   },
   input: {
@@ -262,7 +305,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   btn: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",

@@ -10,7 +10,7 @@ import {
   Timestamp,
   writeBatch,
 } from "firebase/firestore";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -31,7 +31,7 @@ export default function OnlineOrderDetail() {
     : params.orderId;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const busy = useRef(false);
   const [order, setOrder] = useState<any>(null);
 
   const [medicines, setMedicines] = useState<any[]>([]);
@@ -147,9 +147,9 @@ export default function OnlineOrderDetail() {
         return prev.map((item) =>
           item.medicineId === medicine.id
             ? {
-                ...item,
-                qty: newQty,
-              }
+              ...item,
+              qty: newQty,
+            }
             : item,
         );
       }
@@ -210,7 +210,7 @@ export default function OnlineOrderDetail() {
       (item) =>
         item.id === requestedItem.medicineId ||
         item.name?.toLowerCase()?.trim() ===
-          requestedItem.name?.toLowerCase()?.trim(),
+        requestedItem.name?.toLowerCase()?.trim(),
     );
 
     if (!medicine) {
@@ -418,6 +418,8 @@ export default function OnlineOrderDetail() {
     if (!validateCart()) {
       return;
     }
+    if (busy.current) return;
+    busy.current = true;
 
     setSaving(true);
 
@@ -489,7 +491,7 @@ export default function OnlineOrderDetail() {
 
         const historyRef = doc(collection(db, "stockHistory"));
 
-        batch.set(billRef, {
+        batch.set(historyRef, {
           billNumber: `ON-${Date.now()}`,
           source: "online",
           status: "Dispensed",
@@ -624,20 +626,15 @@ export default function OnlineOrderDetail() {
         error?.message || "Unable to dispense this order.",
       );
     } finally {
+      busy.current = false;
       setSaving(false);
     }
   };
 
-  /*
-   *
-   * LOADING
-   *
-   */
-
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   }
@@ -719,7 +716,7 @@ export default function OnlineOrderDetail() {
               (m) =>
                 m.id === item.medicineId ||
                 m.name?.toLowerCase()?.trim() ===
-                  item.name?.toLowerCase()?.trim(),
+                item.name?.toLowerCase()?.trim(),
             );
 
             const available =
@@ -883,7 +880,7 @@ export default function OnlineOrderDetail() {
         disabled={saving}
       >
         {saving ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#0D9488" />
         ) : (
           <>
             <Ionicons name="checkmark-circle" size={22} color="#fff" />
@@ -928,7 +925,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 25,
     paddingHorizontal: 20,
@@ -1013,14 +1010,14 @@ const styles = StyleSheet.create({
   },
 
   requestQty: {
-    color: "#2563EB",
+    color: "#0D9488",
     marginTop: 6,
     fontWeight: "600",
     fontSize: 13,
   },
 
   addRequestedBtn: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 10,
@@ -1156,7 +1153,7 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#2563EB",
+    color: "#0D9488",
   },
 
   dispenseBtn: {

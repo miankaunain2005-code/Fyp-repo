@@ -1,7 +1,9 @@
+import SlipPopup from "@/src/components/SlipPopup";
 import { db } from "@/src/config/firebaseConfig";
+import { useAuth } from "@/src/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,9 +19,12 @@ export default function ReceptionAppointments() {
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<any>(null)
+  const [visible, setVisible] = useState(false)
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
-
+  const { user, role } = useAuth();
   useEffect(() => {
+    if (!user?.uid || role !== "reception") return;
     const q = query(collection(db, "appointments"));
 
     const unsub = onSnapshot(
@@ -39,7 +44,7 @@ export default function ReceptionAppointments() {
     );
 
     return () => unsub();
-  }, []);
+  }, [user?.uid, role]);
 
   const filteredList = useMemo(() => {
     let list = appointments;
@@ -62,7 +67,19 @@ export default function ReceptionAppointments() {
         a.token?.toLowerCase().includes(term),
     );
   }, [search, filter, appointments]);
-
+  const openSlip = async (item: any) => {
+    let activationCode: string | null = null;
+    try {
+      const snap = await getDocs(
+        query(collection(db, "patientCodes"), where("patientId", "==", item.patientId)),
+      );
+      if (!snap.empty) activationCode = snap.docs[0].data().code || null;
+    } catch (e) {
+      console.log("[slip-code]", e);
+    }
+    setSelected({ ...item, activationCode });
+    setVisible(true);
+  };
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -119,45 +136,48 @@ export default function ReceptionAppointments() {
         </View>
       ) : (
         filteredList.map((item: any) => (
-          <View key={item.id} style={styles.card}>
-            <View style={styles.cardTop}>
-              <View style={styles.tokenBadge}>
-                <Text style={styles.tokenText}>{item.token}</Text>
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.patientName}>{item.name}</Text>
-                <Text style={styles.info}>ID: {item.patientId}</Text>
-              </View>
-              <View
-                style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor:
-                      item.status === "Completed" ? "#DCFCE7" : "#FEF3C7",
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: item.status === "Completed" ? "#16A34A" : "#D97706",
-                    fontWeight: "700",
-                    fontSize: 11,
-                  }}
-                >
-                  {item.status}
-                </Text>
-              </View>
-            </View>
+          <TouchableOpacity key={item.id} style={styles.card} onPress={() => openSlip(item)}>
 
-            <Text style={styles.info}>👨‍⚕️ Dr. {item.doctorName}</Text>
-            <Text style={styles.info}>📞 {item.phone}</Text>
-            <Text style={styles.dateText}>
-              {item.date} • {item.time}
-            </Text>
-          </View>
+            <View style={styles.card}>
+              <View style={styles.cardTop}>
+                <View style={styles.tokenBadge}>
+                  <Text style={styles.tokenText}>{item.token}</Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.patientName}>{item.name}</Text>
+                  <Text style={styles.info}>ID: {item.patientId}</Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor:
+                        item.status === "Completed" ? "#DCFCE7" : "#FEF3C7",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: item.status === "Completed" ? "#16A34A" : "#D97706",
+                      fontWeight: "700",
+                      fontSize: 11,
+                    }}
+                  >
+                    {item.status}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.info}>👨‍⚕️ Dr. {item.doctorName}</Text>
+              <Text style={styles.info}>📞 {item.phone}</Text>
+              <Text style={styles.dateText}>
+                {item.date} • {item.time}
+              </Text>
+            </View>
+          </TouchableOpacity>
         ))
       )}
-
+      <SlipPopup visible={visible} data={selected} onClose={() => setVisible(false)} />
       <View style={{ height: 60 }} />
     </ScrollView>
   );

@@ -69,7 +69,7 @@ export default function PrescriptionDetails() {
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
 
         <Text style={styles.loadingText}>Loading Prescription...</Text>
       </View>
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 30,
     paddingHorizontal: 20,
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   },
 
   downloadButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     marginHorizontal: 15,
     marginTop: 20,
     height: 55,

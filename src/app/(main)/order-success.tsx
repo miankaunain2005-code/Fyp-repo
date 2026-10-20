@@ -58,7 +58,7 @@ export default function OrderSuccess() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#16A34A" />
+        <ActivityIndicator size="large" color="#0D9488" />
 
         <Text style={styles.loadingText}>Loading order details...</Text>
       </View>
@@ -192,7 +192,7 @@ export default function OrderSuccess() {
 
       <TouchableOpacity
         style={styles.trackBtn}
-        onPress={() => router.replace("/(main)/order-history")}
+        onPress={() => router.replace("/(main)/order-from-prescription")}
       >
         <Ionicons name="location-outline" size={22} color="#fff" />
 
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
 
   value: {
     fontSize: 14,
-    color: "#111827",
+    color: "#157e75",
     fontWeight: "700",
     flexShrink: 1,
     textAlign: "right",
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
 
   orderId: {
     fontSize: 12,
-    color: "#2563EB",
+    color: "#0D9488",
     fontWeight: "700",
     maxWidth: "65%",
     textAlign: "right",
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
   trackBtn: {
     width: "100%",
     height: 55,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     borderRadius: 14,
     marginTop: 22,
     flexDirection: "row",
@@ -390,12 +390,12 @@ const styles = StyleSheet.create({
 
   continueBtnText: {
     fontSize: 16,
-    color: "#2563EB",
+    color: "#0D9488",
     fontWeight: "700",
   },
 
   historyBtn: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     marginTop: 20,
     paddingHorizontal: 25,
     paddingVertical: 14,

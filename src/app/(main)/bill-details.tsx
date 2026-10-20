@@ -48,7 +48,7 @@ export default function PatientBillDetails() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   }
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 25,
     paddingHorizontal: 20,
@@ -249,6 +249,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   totalLabel: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
-  totalValue: { fontSize: 24, fontWeight: "800", color: "#2563EB" },
+  totalValue: { fontSize: 24, fontWeight: "800", color: "#0D9488" },
   value: { color: "#111827", fontWeight: "700" },
 });

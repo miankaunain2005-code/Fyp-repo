@@ -6,7 +6,7 @@ export default function MainLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#2563EB",
+        tabBarActiveTintColor: "#0D9488",
         tabBarInactiveTintColor: "#94A3B8",
         tabBarStyle: {
           position: "absolute",
@@ -32,11 +32,11 @@ export default function MainLayout() {
       />
 
       <Tabs.Screen
-        name="ai"
+        name="bill-history"
         options={{
-          title: "AI",
+          title: "Bill History",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sparkles" size={size} color={color} />
+            <Ionicons name="receipt" size={size} color={color} />
           ),
         }}
       />
@@ -67,12 +67,15 @@ export default function MainLayout() {
       <Tabs.Screen name="consult" options={{ href: null }} />
       <Tabs.Screen name="medicalreports" options={{ href: null }} />
       <Tabs.Screen name="order-from-prescription" options={{ href: null }} />
-      <Tabs.Screen name="bill-history" options={{ href: null }} />
+      <Tabs.Screen name="ai" options={{ href: null }} />
       <Tabs.Screen name="order-success" options={{ href: null }} />
       <Tabs.Screen name="pharmacy" options={{ href: null }} />
       <Tabs.Screen name="prescription-details" options={{ href: null }} />
       <Tabs.Screen name="prescriptionhistory" options={{ href: null }} />
       <Tabs.Screen name="bill-details" options={{ href: null }} />
+      <Tabs.Screen name="lab-reports" options={{ href: null }} />
+      <Tabs.Screen name="lab-report-details" options={{ href: null }} />
+      <Tabs.Screen name="lab-bill-details" options={{ href: null }} />
     </Tabs>
   );
 }

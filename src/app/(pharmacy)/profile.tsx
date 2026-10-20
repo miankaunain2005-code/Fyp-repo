@@ -87,7 +87,7 @@ export default function PharmacyProfile() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   }
@@ -169,7 +169,7 @@ export default function PharmacyProfile() {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#0D9488" />
             ) : (
               <Text style={styles.saveBtnText}>Save Changes</Text>
             )}

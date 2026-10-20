@@ -25,36 +25,37 @@ export default function HomeScreen() {
     user?.email?.split("@")[0] ||
     "Patient";
   const [appointment, setAppointment] = useState<any>(null);
-
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
 
+    // Jo bhi booking maine ki (apne ya kisi aur ke liye)
     const q = query(
       collection(db, "appointments"),
       where("userId", "==", user.uid),
     );
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      const all = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const all = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      // Sirf wo appointments jo abhi tak "Completed" nahi huin
-      const active = all.filter((item: any) => item.status !== "Completed");
+        // Sirf wo jo abhi Completed nahi hui
+        const active = all.filter((item: any) => item.status !== "Completed");
 
-      // Sabse recent booking ko upar rakhte hain (agar ek se zyada active hon)
-      active.sort((a: any, b: any) => {
-        const aTime = new Date(`${a.date} ${a.time}`).getTime() || 0;
-        const bTime = new Date(`${b.date} ${b.time}`).getTime() || 0;
-        return bTime - aTime;
-      });
+        // Sabse recent upar
+        active.sort((a: any, b: any) => {
+          const aTime = a.createdAt?.seconds || 0;
+          const bTime = b.createdAt?.seconds || 0;
+          return bTime - aTime;
+        });
 
-      setAppointment(active[0] || null);
-    });
+        setAppointment(active[0] || null);
+      },
+      (e) => console.log("[patient-home] error:", e.code),
+    );
 
     return () => unsub();
-  }, [user]);
+  }, [user?.uid]);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -69,7 +70,7 @@ export default function HomeScreen() {
           style={styles.bell}
           onPress={() => setDrawerVisible(true)}
         >
-          <Ionicons name="menu" size={26} color="#1E3A8A" />
+          <Ionicons name="menu" size={26} color="#0D9488" />
         </TouchableOpacity>
       </View>
 
@@ -78,14 +79,14 @@ export default function HomeScreen() {
           source={require("../../assets/lottie/AI application in healthcare.json")}
           autoPlay
           loop
-          style={{ width: 150, height: 150 }}
+          style={{ width: 150, height: 150, }}
         />
       </View>
 
       {/* Welcome */}
       <View style={styles.userSection}>
         <View style={styles.avatar}>
-          <Ionicons name="person" size={50} color="#3B82F6" />
+          <Ionicons name="person" size={50} color="#0D9488" />
         </View>
         <View style={{ marginLeft: 15 }}>
           <Text style={styles.welcome}>Welcome,</Text>
@@ -97,7 +98,7 @@ export default function HomeScreen() {
       <View style={styles.buttonRow}>
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => router.push("/(main)/prescriptionhistory")}
+          onPress={() => router.push("/(main)/lab-reports")}
         >
           <Text style={styles.primaryText}>View Reports</Text>
         </TouchableOpacity>
@@ -121,6 +122,9 @@ export default function HomeScreen() {
             <Text style={styles.dayText}>Token: {appointment.token}</Text>
             <Text style={{ color: "#334155", marginTop: 4, fontSize: 13 }}>
               Dr. {appointment.doctorName}
+            </Text>
+            <Text style={{ color: "#64748B", marginTop: 2, fontSize: 12 }}>
+              For: {appointment.name}
             </Text>
           </View>
           <View>
@@ -178,7 +182,7 @@ export default function HomeScreen() {
             <MaterialCommunityIcons
               name="face-agent"
               size={32}
-              color="#7C3AED"
+              color="#0D9488"
             />
           </View>
           <Text style={styles.cardTitle}>AI Chatbot</Text>
@@ -196,12 +200,12 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.card}
-          onPress={() => router.push("/(main)/bill-history")}
+          onPress={() => router.push("/(main)/lab-reports")}
         >
           <View style={[styles.iconCircle, { backgroundColor: "#FEE2E2" }]}>
-            <Ionicons name="receipt" size={32} color="#DC2626" />
+            <Ionicons name="flask" size={32} color="#DC2626" />
           </View>
-          <Text style={styles.cardTitle}>My Bills</Text>
+          <Text style={styles.cardTitle}>My Reports</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -258,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  logo: { fontSize: 28, fontWeight: "700", color: "#1E3A8A" },
+  logo: { fontSize: 28, fontWeight: "700", color: "#157e75" },
   subLogo: { color: "#64748B", marginTop: 3 },
   bell: {
     backgroundColor: "#fff",
@@ -289,7 +293,7 @@ const styles = StyleSheet.create({
     width: "48%",
     height: 55,
     borderRadius: 30,
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#0D9488",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -304,7 +308,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   primaryText: { color: "#fff", fontWeight: "700" },
-  secondaryText: { color: "#3B82F6", fontWeight: "700" },
+  secondaryText: { color: "#0D9488", fontWeight: "700" },
   appointmentCard: {
     marginTop: 25,
     backgroundColor: "#fff",

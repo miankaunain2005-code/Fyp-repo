@@ -146,7 +146,7 @@ export default function DoctorPrescriptionHistory() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#2563EB"
+          color="#0D9488"
           style={{ marginTop: 80 }}
         />
       ) : !search.trim() ? (
@@ -213,7 +213,7 @@ export default function DoctorPrescriptionHistory() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#EEF5FF" },
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 25,
     paddingHorizontal: 20,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   viewBtn: {
     marginTop: 14,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     height: 44,
     borderRadius: 10,
     flexDirection: "row",

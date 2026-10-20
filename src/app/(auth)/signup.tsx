@@ -1,63 +1,52 @@
+import GenderPicker from "@/src/components/GenderPicker";
 import imagepath from "@/src/constraints/imagepath";
 import { useAuth } from "@/src/context/AuthContext";
-import { sendEmailOtp, verifyEmailOtp } from "@/src/utils/emailOtpService";
 import { formatDOBInput, formatPhoneInput } from "@/src/utils/inputFormatters";
-import { findMatchingPatientForSignup } from "@/src/utils/patientService";
+import { findMatchingPatientForSignup, verifyActivationCode } from "@/src/utils/patientService";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ImageBackground,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  ActivityIndicator, Alert, ImageBackground, ScrollView, StyleSheet,
+  Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 
 export default function SignupScreen() {
   useEffect(() => {
     Alert.alert(
       "Before You Sign Up",
-      "If you have visited this hospital before (even at the reception desk), please enter the same Name, Date of Birth, and Gender you gave earlier.\n\n" +
-        "This helps us find your old record automatically — so all your past prescriptions and bills will show up in your account.\n\n" +
-        "If this is your first time, just fill in your correct details below.",
-      [{ text: "Got It", style: "default" }],
+      "Agar aap pehle is hospital se checkup karwa chuke hain, to slip par likha Patient ID aur Activation Code neeche daalein. Isse purani history account mein aa jayegi.\n\nSlip nahi hai? Account bana lein, baad mein Profile se record link kar sakte hain.",
+      [{ text: "Got It" }],
     );
   }, []);
 
   const { register } = useAuth();
+  const busy = useRef(false);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [DOB, setDOB] = useState("");
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
-
+  const [hospitalPid, setHospitalPid] = useState("");
+  const [activationCode, setActivationCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sendingOtp, setSendingOtp] = useState(false);
-  const [pendingMatch, setPendingMatch] = useState<any>(null);
-  const [otpVisible, setOtpVisible] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpLoading, setOtpLoading] = useState(false);
+
+  const emailMismatch =
+    confirmEmail.length > 0 &&
+    email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase();
 
   const validateForm = () => {
-    if (
-      !name.trim() ||
-      !email.trim() ||
-      !password.trim() ||
-      !confirmPassword.trim() ||
-      !phone.trim() ||
-      !DOB.trim() ||
-      !gender.trim() ||
-      !age.trim()
-    ) {
+    if (!name.trim() || !email.trim() || !confirmEmail.trim() || !password ||
+      !confirmPassword || !phone.trim() || !DOB.trim() || !gender.trim() || !age.trim()) {
       Alert.alert("Error", "Please fill all fields");
+      return false;
+    }
+    if (emailMismatch) {
+      Alert.alert("Error", "Dono email match nahi kar rahi");
       return false;
     }
     if (password !== confirmPassword) {
@@ -72,90 +61,64 @@ export default function SignupScreen() {
   };
 
   const handleSignup = async () => {
+    if (busy.current) return;
     if (!validateForm()) return;
-    setLoading(true);
-    try {
-      // Purana record match hota hai ya nahi — dono case mein
-      // aage email verification zaroori hai
-      const match = await findMatchingPatientForSignup(
-        name,
-        DOB,
-        gender,
-        phone,
-      );
-      setPendingMatch(match);
 
-      setSendingOtp(true);
-      await sendEmailOtp(email);
-      setSendingOtp(false);
-      setLoading(false);
-      setOtpVisible(true);
-
-      Alert.alert(
-        "Verification Code sent 📧",
-        `6 digit otp sent on this email ${email} .`,
-      );
-    } catch (error: any) {
-      setLoading(false);
-      setSendingOtp(false);
-      console.log("SIGNUP OTP ERROR:", error);
-      Alert.alert("Error", error?.message || "Something went wrong.");
-    }
-  };
-
-  const handleOtpVerify = async () => {
-    if (!otp.trim()) {
-      Alert.alert("Required", "Verification code daalein.");
+    const hasPid = hospitalPid.trim().length > 0;
+    const hasCode = activationCode.trim().length > 0;
+    if (hasPid !== hasCode) {
+      Alert.alert("Incomplete", "Patient ID aur Activation Code dono daalein, ya dono khali chhor dein.");
       return;
     }
-    setOtpLoading(true);
-    try {
-      const isValid = await verifyEmailOtp(email, otp);
-      if (!isValid) {
-        setOtpLoading(false);
-        Alert.alert(
-          "Verification Failed",
-          "Code galat hai ya expire ho chuka hai.",
-        );
-        return;
-      }
-      setOtpVisible(false);
-      await completeSignup(pendingMatch?.patientId || null);
-    } catch {
-      Alert.alert("Error", "Verification mein masla hua.");
-    }
-    setOtpLoading(false);
-  };
 
-  const resendOtp = async () => {
-    setSendingOtp(true);
-    try {
-      await sendEmailOtp(email);
-      Alert.alert("Code Dobara Bheja Gaya", `${email} check karein.`);
-    } catch {
-      Alert.alert("Error", "Code bhejne mein masla hua.");
-    }
-    setSendingOtp(false);
-  };
-
-  const completeSignup = async (existingPatientId: string | null) => {
+    busy.current = true;
     setLoading(true);
     try {
-      await register(
-        name,
-        email,
-        password,
-        phone,
-        DOB,
-        gender,
-        age,
-        existingPatientId,
-      );
-      router.replace("/login");
+      let linkId: string | null = null;
+      let note = "";
+
+      if (hasPid) {
+        const ok = await verifyActivationCode(hospitalPid, activationCode);
+        if (!ok) {
+          Alert.alert("Code Galat", "Patient ID ya Activation Code galat hai, ya pehle use ho chuka hai. Reception se naya code le sakte hain.");
+          return;
+        }
+        linkId = hospitalPid.trim().toUpperCase();
+        note = `Aap ka purana record (${linkId}) account se jur gaya hai.\n\n`;
+      } else {
+        const match = await findMatchingPatientForSignup(name, DOB, gender, phone);
+        if (match) {
+          // Popup: user decide kare
+          const goBack = await new Promise<boolean>((resolve) =>
+            Alert.alert(
+              "Purana Record Mila 📋",
+              match.linkedUserId
+                ? `Is naam ka record (${match.patientId}) pehle se kisi app account se linked hai.\n\nNaya account ban sakta hai, lekin purani history nahi dikhegi.`
+                : `Aap ne pehle hospital mein checkup karwaya hai (${match.patientId}).\n\nHistory chahiye to slip se Patient ID aur Activation Code daalein. Warna naya account ban jayega, aur baad mein Profile se record link kar sakte hain.`,
+              [
+                { text: "Code Daalta Hoon", onPress: () => resolve(true) },
+                { text: "Naya Account Banao", onPress: () => resolve(false) },
+              ],
+              { cancelable: false },
+            ),
+          );
+          if (goBack) return;
+        }
+      }
+
+      await register(name, email, password, phone, DOB, gender, age, linkId, linkId ? activationCode.trim() : undefined);
+
+      Alert.alert("Account Ban Gaya ✅", `${note}Verification link ${email.trim()} par bheja gaya hai. Link click karke aage barhein.`);
+      router.replace("/(auth)/verify-email");
     } catch (error: any) {
-      console.log("REGISTER ERROR:", error?.code, error?.message);
-      Alert.alert("Signup Failed", error?.message || "Something went wrong");
+      console.log("SIGNUP ERROR:", error?.code, error?.message);
+      const msg =
+        error?.code === "auth/email-already-in-use" ? "Is email se account pehle se hai. Login ya Forgot Password use karein."
+          : error?.code === "auth/invalid-email" ? "Email sahi format mein likhein."
+            : error?.message || "Something went wrong";
+      Alert.alert("Signup Failed", msg);
     } finally {
+      busy.current = false;
       setLoading(false);
     }
   };
@@ -163,162 +126,50 @@ export default function SignupScreen() {
   return (
     <ImageBackground source={imagepath.background} style={styles.bg}>
       <View style={styles.overlay} />
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingVertical: 40 }} keyboardShouldPersistTaps="handled">
+        <View style={styles.card}>
+          <Text style={styles.logo}>🤖 MediCare AI</Text>
+          <Text style={styles.subtitle}>Smart OPD & Pharmacy System</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.logo}>🤖 MediCare AI</Text>
-        <Text style={styles.subtitle}>Smart OPD & Pharmacy System</Text>
-
-        <TextInput
-          placeholder="Full Name"
-          placeholderTextColor="#fff"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-        />
-
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor="#fff"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-        />
-
-        <TextInput
-          placeholder="Phone (03XX-XXXXXXX)"
-          placeholderTextColor="#fff"
-          value={phone}
-          onChangeText={(text) => setPhone(formatPhoneInput(text))}
-          keyboardType="number-pad"
-          maxLength={11}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Date of Birth (DD-MM-YYYY)"
-          placeholderTextColor="#fff"
-          value={DOB}
-          onChangeText={(text) => setDOB(formatDOBInput(text))}
-          keyboardType="number-pad"
-          maxLength={10}
-          style={styles.input}
-        />
-
-        <TextInput
-          placeholder="Gender"
-          placeholderTextColor="#fff"
-          value={gender}
-          onChangeText={setGender}
-          style={styles.input}
-        />
-
-        <TextInput
-          placeholder="Age"
-          placeholderTextColor="#fff"
-          value={age}
-          onChangeText={setAge}
-          keyboardType="number-pad"
-          style={styles.input}
-        />
-
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor="#fff"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.input}
-        />
-
-        <TextInput
-          placeholder="Confirm Password"
-          placeholderTextColor="#fff"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          style={styles.input}
-        />
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleSignup}
-          disabled={loading || sendingOtp}
-        >
-          {loading || sendingOtp ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.btnText}>Create Account</Text>
+          <TextInput placeholder="Full Name" placeholderTextColor="#fff" value={name} onChangeText={setName} style={styles.input} />
+          <TextInput placeholder="Email" placeholderTextColor="#fff" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" style={styles.input} />
+          <TextInput placeholder="Confirm Email" placeholderTextColor="#fff" value={confirmEmail} onChangeText={setConfirmEmail} keyboardType="email-address" autoCapitalize="none" style={styles.input} />
+          {emailMismatch && (
+            <Text style={{ color: "#FCA5A5", marginTop: -6, marginBottom: 10, fontSize: 12 }}>
+              ❌ Dono email match nahi kar rahi
+            </Text>
           )}
-        </TouchableOpacity>
+          <TextInput placeholder="Phone (03XX-XXXXXXX)"
+            placeholderTextColor="#fff"
+            value={phone} onChangeText={(t) =>
+              setPhone(formatPhoneInput(t))}
+            keyboardType="number-pad"
+            maxLength={12}
+            style={styles.input} />
+          <TextInput placeholder="Date of Birth (DD-MM-YYYY)" placeholderTextColor="#fff" value={DOB} onChangeText={(t) => setDOB(formatDOBInput(t))} keyboardType="number-pad" maxLength={10} style={styles.input} />
+          <GenderPicker dark value={gender} onChange={setGender} />
+          <TextInput placeholder="Age" placeholderTextColor="#fff" value={age} onChangeText={setAge} keyboardType="number-pad" style={styles.input} />
+          <TextInput placeholder="Password" placeholderTextColor="#fff" value={password} onChangeText={setPassword} secureTextEntry style={styles.input} />
+          <TextInput placeholder="Confirm Password" placeholderTextColor="#fff" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry style={styles.input} />
 
-        <TouchableOpacity onPress={() => router.push("/login")}>
-          <Text style={styles.link}>Already have an account? Login</Text>
-        </TouchableOpacity>
+          <Text style={{ color: "#ddd", marginTop: 6, marginBottom: 8, fontSize: 12 }}>
+            Pehle hospital aaye the? Slip wali details daalein (optional)
+          </Text>
+          <TextInput placeholder="Patient ID (e.g. P-000012)" placeholderTextColor="#fff" value={hospitalPid} onChangeText={setHospitalPid} autoCapitalize="characters" style={styles.input} />
+          <TextInput placeholder="Activation Code (6 digit)" placeholderTextColor="#fff" value={activationCode} onChangeText={setActivationCode} keyboardType="number-pad" maxLength={6} style={styles.input} />
 
-        <Modal visible={otpVisible} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.otpCard}>
-              <TouchableOpacity
-                style={styles.otpCloseBtn}
-                onPress={() => setOtpVisible(false)}
-              >
-                <Text style={styles.otpCloseText}>✕</Text>
-              </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={loading}>
+            {loading ? <ActivityIndicator color="#0D9488" /> : <Text style={styles.btnText}>Create Account</Text>}
+          </TouchableOpacity>
 
-              <View style={styles.otpIconCircle}>
-                <Text style={{ fontSize: 30 }}>📧</Text>
-              </View>
-
-              <Text style={styles.otpTitle}>Verify Your Email</Text>
-              <Text style={styles.otpSubtitle}>
-                We sent a 6-digit code to{"\n"}
-                <Text style={{ fontWeight: "700", color: "#0F172A" }}>
-                  {email}
-                </Text>
-              </Text>
-
-              <TextInput
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="number-pad"
-                placeholder="000000"
-                placeholderTextColor="#CBD5E1"
-                maxLength={6}
-                style={styles.otpInput}
-              />
-
-              <TouchableOpacity
-                style={styles.otpVerifyBtn}
-                onPress={handleOtpVerify}
-                disabled={otpLoading}
-              >
-                {otpLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.otpVerifyText}>
-                    Verify & Create Account
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={resendOtp}
-                disabled={sendingOtp}
-                style={{ marginTop: 16 }}
-              >
-                <Text style={styles.otpResendText}>
-                  {sendingOtp ? "Sending..." : "Didn't get the code? Resend"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      </View>
+          <TouchableOpacity onPress={() => router.push("/login")}>
+            <Text style={styles.link}>Already have an account? Login</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </ImageBackground>
   );
 }
-
 const styles = StyleSheet.create({
   bg: { flex: 1, justifyContent: "center" },
   overlay: {

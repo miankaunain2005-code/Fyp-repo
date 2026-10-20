@@ -63,7 +63,7 @@ export default function DoctorDashboard() {
           style={styles.notification}
           onPress={() => setDrawerVisible(true)}
         >
-          <Ionicons name="menu" size={24} color="#1E40AF" />
+          <Ionicons name="menu" size={24} color="#0D9488" />
         </TouchableOpacity>
       </View>
 
@@ -78,7 +78,7 @@ export default function DoctorDashboard() {
 
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
-          <Ionicons name="medical" size={55} color="#2563EB" />
+          <Ionicons name="medical" size={55} color="#0D9488" />
         </View>
         <View style={{ marginLeft: 18 }}>
           <Text style={styles.welcome}>Welcome Back</Text>
@@ -93,7 +93,7 @@ export default function DoctorDashboard() {
         <View style={styles.statCard}>
           <Ionicons name="calendar" size={34} color="#2563EB" />
           <Text style={styles.statValue}>{todayAppointments}</Text>
-          <Text style={styles.statTitle}>Today's Appointments</Text>
+          <Text style={styles.statTitle}>Todays Appointments</Text>
         </View>
         <View style={styles.statCard}>
           <Ionicons name="people" size={34} color="#F59E0B" />
@@ -120,7 +120,11 @@ export default function DoctorDashboard() {
           <Text style={styles.actionTitle}>Search Patient</Text>
           <Text style={styles.actionSubtitle}>Search using Patient ID</Text>
         </TouchableOpacity>
-
+        <TouchableOpacity style={styles.actionCard} onPress={() => router.push("/(doctor)/lab-reports")}>
+          <Ionicons name="flask" size={55} color="#0D9488" />
+          <Text style={styles.actionTitle}>Lab Reports</Text>
+          <Text style={styles.actionSubtitle}>Apne patients ki</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionCard}
           onPress={() => router.push("/(doctor)/prisciptionhistory")}
@@ -131,7 +135,7 @@ export default function DoctorDashboard() {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionTitle}>Today's Appointments</Text>
+      <Text style={styles.sectionTitle}>Todays Appointments</Text>
 
       {upcomingList.length === 0 ? (
         <Text style={{ color: "#64748B", marginBottom: 20 }}>
@@ -141,7 +145,7 @@ export default function DoctorDashboard() {
         upcomingList.map((item: any) => (
           <TouchableOpacity key={item.id} style={styles.appointmentCard}>
             <View style={styles.patientIcon}>
-              <Ionicons name="person" size={35} color="#2563EB" />
+              <Ionicons name="person" size={35} color="#0D9488" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.patientName}>{item.name}</Text>
@@ -152,7 +156,7 @@ export default function DoctorDashboard() {
               style={styles.openButton}
               onPress={() =>
                 router.push({
-                  pathname: "/(doctor)/consultation",
+                  pathname: "/(doctor)/doctor-consultation",
                   params: {
                     appointmentId: item.id,
                     token: item.token,
@@ -213,7 +217,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  logo: { fontSize: 28, fontWeight: "700", color: "#1E3A8A" },
+  logo: { fontSize: 28, fontWeight: "700", color: "#157e75" },
   subLogo: { color: "#64748B", marginTop: 3, fontSize: 15 },
   notification: {
     width: 55,
@@ -248,7 +252,7 @@ const styles = StyleSheet.create({
   },
   welcome: { color: "#64748B", fontSize: 16 },
   name: { fontSize: 30, fontWeight: "700", color: "#0F172A" },
-  speciality: { color: "#2563EB", marginTop: 5, fontWeight: "600" },
+  speciality: { color: "#0D9488", marginTop: 5, fontWeight: "600" },
   sectionTitle: {
     fontSize: 24,
     fontWeight: "700",
@@ -335,7 +339,7 @@ const styles = StyleSheet.create({
   patientName: { fontSize: 20, fontWeight: "700", color: "#0F172A" },
   patientInfo: { marginTop: 4, color: "#64748B" },
   openButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingHorizontal: 22,
     paddingVertical: 10,
     borderRadius: 15,

@@ -195,7 +195,7 @@ export default function CartScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   }
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 18, fontWeight: "700" },
   salt: { color: "#666", marginTop: 5 },
-  price: { marginTop: 8, color: "#2563EB", fontWeight: "700" },
+  price: { marginTop: 8, color: "#0D9488", fontWeight: "700" },
   limitText: {
     marginTop: 4,
     color: "#F59E0B",
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   qtyBtn: {
     width: 35,
     height: 35,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 8,

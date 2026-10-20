@@ -10,27 +10,26 @@ function AuthGuard({ children }: any) {
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return; //  wait for Firebase restore
+    if (loading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const onVerifyScreen = (segments as string[])[1] === "verify-email";
+    const needsVerify = !!user && role === "patient" && !user.emailVerified;
 
     if (!user && !inAuthGroup) {
       router.replace("/(auth)/login");
+      return;
     }
-
+    if (needsVerify) {
+      if (!onVerifyScreen) router.replace("/(auth)/verify-email");
+      return;
+    }
     if (user && inAuthGroup) {
-      if (role === "doctor") {
-        router.replace("/(doctor)");
-      } else if (role === "patient") {
-        router.replace("/(main)");
-      } else if (role === "pharmacy") {
-        router.replace("/(pharmacy)");
-      } else if (role === "reception") {
-        router.replace("/(reception)");
-      }
-      // else if (role === "admin") {
-      //   router.replace("/(admin)");
-      // }
+      if (role === "doctor") router.replace("/(doctor)");
+      else if (role === "patient") router.replace("/(main)");
+      else if (role === "pharmacy") router.replace("/(pharmacy)");
+      else if (role === "reception") router.replace("/(reception)");
+      else if (role === "lab") router.replace("/(lab)")
     }
   }, [user, role, loading]);
 

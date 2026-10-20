@@ -1,15 +1,22 @@
+import GenderPicker from "@/src/components/GenderPicker";
 import SlipPopup from "@/src/components/SlipPopup";
 import { useAuth } from "@/src/context/AuthContext";
-import { createAppointment, getDoctors } from "@/src/utils/firestoreService";
+import {
+  createAppointment,
+  findPendingDuplicate,
+  getDoctors,
+} from "@/src/utils/firestoreService";
 import { formatDOBInput, formatPhoneInput } from "@/src/utils/inputFormatters";
 import {
+  createActivationCode,
   createPatient,
   findPatient,
   generatePatientId,
+  generateToken,
 } from "@/src/utils/patientService";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +27,27 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const askExisting = (p: any) =>
+  new Promise<"cancel" | "book" | "bookCode">((resolve) => {
+    const linked = !!p.linkedUserId;
+    const body =
+      `Name: ${p.name}\nPatient ID: ${p.patientId}\nApp Account: ${linked ? "Haan (linked)" : "Nahi"}\n\n` +
+      `Ye patient pehle checkup karwa chuka hai. Isi record mein booking karein?`;
+    const buttons: any[] = [
+      { text: "Wapas", style: "cancel", onPress: () => resolve("cancel") },
+      { text: "Booking karein", onPress: () => resolve("book") },
+    ];
+    if (!linked) {
+      buttons.push({
+        text: "Booking + Naya Code",
+        onPress: () => resolve("bookCode"),
+      });
+    }
+    Alert.alert("Patient Pehle Se Registered ✅", body, buttons, {
+      cancelable: false,
+    });
+  });
 
 export default function BookAppointment() {
   const { user } = useAuth();
@@ -34,6 +62,7 @@ export default function BookAppointment() {
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
 
   const [saving, setSaving] = useState(false);
+  const busy = useRef(false); // foran lock
 
   const [visible, setVisible] = useState(false);
   const [slip, setSlip] = useState<any>(null);
@@ -57,11 +86,12 @@ export default function BookAppointment() {
   };
 
   const generateSlip = async () => {
+    if (busy.current) return; // double tap ignore
+
     if (!selectedDoctor) {
       Alert.alert("Required", "Please select a doctor");
       return;
     }
-
     if (
       !name.trim() ||
       !DOB.trim() ||
@@ -73,29 +103,52 @@ export default function BookAppointment() {
       return;
     }
 
+    busy.current = true;
     setSaving(true);
 
     try {
-      // Same matching logic jo patient ki self-signup mein hoti hai —
-      // agar ye patient pehle bhi aa chuka hai (kisi bhi maadhyam se),
-      // to purani patientId use karo, naya duplicate na bane.
-      const existing = await findPatient(phone, name, gender, DOB, age);
+      const existing = await findPatient(phone, name, gender, DOB);
 
       let patientId = "";
+      let linkedUserId: string | null = null;
+      let newCode: string | null = null;
 
       if (existing) {
+        const choice = await askExisting(existing);
+        if (choice === "cancel") return;
+
         patientId = existing.patientId;
+        linkedUserId = existing.linkedUserId || null;
+
+        // Duplicate check: aaj, usi doctor, pending
+        const dup = await findPendingDuplicate(
+          "patientId",
+          patientId,
+          patientId,
+          selectedDoctor.uid,
+        );
+        if (dup) {
+          Alert.alert(
+            "Appointment Pehle Se Hai",
+            `${name} ki ${selectedDoctor.name} ke saath aaj ki appointment pehle se hai (Token: ${dup.token}). Dobara book nahi ho sakti.`,
+          );
+          return;
+        }
+
+        if (choice === "bookCode" && !linkedUserId) {
+          newCode = await createActivationCode(patientId);
+        }
       } else {
         patientId = await generatePatientId();
         await createPatient({ patientId, name, phone, gender, DOB, age });
+        newCode = await createActivationCode(patientId);
       }
 
-      const token = "TKN-" + Math.floor(1000 + Math.random() * 9000);
-
+      const token = await generateToken();
       const data = {
         token,
         patientId,
-        userId: null, // 👈 walk-in patient ka koi app account nahi hai abhi
+        userId: linkedUserId,
         name,
         DOB,
         phone,
@@ -114,13 +167,14 @@ export default function BookAppointment() {
 
       await createAppointment(data);
 
-      setSlip(data);
+      setSlip({ ...data, activationCode: newCode });
       setVisible(true);
       clearForm();
     } catch (error) {
       console.log(error);
       Alert.alert("Error", "Failed to book appointment. Please try again.");
     } finally {
+      busy.current = false;
       setSaving(false);
     }
   };
@@ -142,9 +196,10 @@ export default function BookAppointment() {
       <View style={styles.infoBanner}>
         <Ionicons name="information-circle" size={20} color="#0D9488" />
         <Text style={styles.infoBannerText}>
-          If this patient has visited before or has the app, entering the same
-          Name, DOB, Gender & Phone will link this booking to their existing
-          record automatically.
+          If the patient has visited before (with the same Name, DOB, Gender,
+          and Phone), their previous record will be found automatically. For a
+          new patient, an App Activation Code will be mentioned on the patient
+          slip.
         </Text>
       </View>
 
@@ -159,31 +214,29 @@ export default function BookAppointment() {
           style={styles.input}
         />
 
+        <Text style={styles.label}>Date of Birth</Text>
         <TextInput
           placeholder="DD-MM-YYYY"
           value={DOB}
-          onChangeText={(text) => setDOB(formatDOBInput(text))}
+          onChangeText={(t) => setDOB(formatDOBInput(t))}
           keyboardType="number-pad"
           maxLength={10}
           style={styles.input}
         />
 
+        <Text style={styles.label}>Phone</Text>
         <TextInput
           placeholder="03XX-XXXXXXX"
           value={phone}
-          onChangeText={(text) => setPhone(formatPhoneInput(text))}
+          onChangeText={(t) => setPhone(formatPhoneInput(t))}
           keyboardType="number-pad"
           maxLength={12}
           style={styles.input}
         />
 
         <Text style={styles.label}>Gender</Text>
-        <TextInput
-          placeholder="Male / Female"
-          value={gender}
-          onChangeText={setGender}
-          style={styles.input}
-        />
+        <GenderPicker value={gender} onChange={setGender} />
+
 
         <Text style={styles.label}>Age</Text>
         <TextInput
@@ -232,12 +285,12 @@ export default function BookAppointment() {
       </View>
 
       <TouchableOpacity
-        style={styles.submitBtn}
+        style={[styles.submitBtn, saving && { opacity: 0.6 }]}
         onPress={generateSlip}
         disabled={saving}
       >
         {saving ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color="#0D9488" />
         ) : (
           <>
             <Ionicons name="checkmark-circle" size={22} color="#fff" />
@@ -252,7 +305,7 @@ export default function BookAppointment() {
         onClose={() => setVisible(false)}
       />
 
-      <View style={{ height: 60 }} />
+      <View style={{ height: 120 }} />
     </ScrollView>
   );
 }
@@ -331,10 +384,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  doctorCardActive: {
-    backgroundColor: "#0D9488",
-    borderColor: "#0D9488",
-  },
+  doctorCardActive: { backgroundColor: "#0D9488", borderColor: "#0D9488" },
   doctorName: { fontWeight: "700", color: "#111827" },
   doctorNameActive: { color: "#fff" },
   doctorSpec: { color: "#6B7280", marginTop: 3 },

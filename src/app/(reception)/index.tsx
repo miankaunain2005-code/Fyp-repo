@@ -1,8 +1,9 @@
+import SlipPopup from "@/src/components/SlipPopup";
 import { db } from "@/src/config/firebaseConfig";
 import { useAuth } from "@/src/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
   ScrollView,
@@ -13,22 +14,27 @@ import {
 } from "react-native";
 
 export default function ReceptionDashboard() {
-  const { user, profile, logout } = useAuth();
-
+  const { user, role, profile, logout } = useAuth();
+  const [selected, setSelected] = useState<any>(null)
+  const [visible, setVisible] = useState(false)
   const receptionistName =
     profile?.name || user?.email?.split("@")[0] || "Receptionist";
 
   const [appointments, setAppointments] = useState<any[]>([]);
 
   useEffect(() => {
+    if (!user?.uid || role !== "reception") return;
+
     const q = query(collection(db, "appointments"));
-
-    const unsub = onSnapshot(q, (snap) => {
-      setAppointments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setAppointments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      },
+      (error) => console.log("[reception-home] listener error:", error.code),
+    );
     return () => unsub();
-  }, []);
+  }, [user?.uid, role]);
 
   const todayStr = new Date().toDateString();
   const todaysAppointments = appointments.filter(
@@ -53,7 +59,20 @@ export default function ReceptionDashboard() {
     logout();
     router.replace("/(auth)/login");
   };
+  const openSlip = async (item: any) => {
+    let activationCode: string | null = null
+    try {
+      const snap = await getDocs(
+        query(collection(db, "patientCodes"), where("patientId", "==", item.patientId))
+      )
+      if (!snap.empty) activationCode = snap.docs[0].data().code || null;
+    } catch (e) {
+      console.log("[slip-code]", e);
+    }
+    setSelected({ ...item, activationCode })
+    setVisible(true)
 
+  }
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.topBar}>
@@ -81,7 +100,7 @@ export default function ReceptionDashboard() {
         <View style={styles.statCard}>
           <Ionicons name="calendar" size={30} color="#0D9488" />
           <Text style={styles.statValue}>{todaysAppointments.length}</Text>
-          <Text style={styles.statTitle}>Today's Total</Text>
+          <Text style={styles.statTitle}>Todays Total</Text>
         </View>
         <View style={styles.statCard}>
           <Ionicons name="time" size={30} color="#F59E0B" />
@@ -117,6 +136,15 @@ export default function ReceptionDashboard() {
         <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={styles.secondaryAction}
+        onPress={() => router.push("/(reception)/patient-code")}
+      >
+        <Ionicons name="key-outline" size={24} color="#0D9488" />
+        <Text style={styles.secondaryActionText}>Patient Activation Code</Text>
+        <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+      </TouchableOpacity>
+
       <Text style={styles.sectionTitle}>Recent Bookings</Text>
 
       {recentList.length === 0 ? (
@@ -125,37 +153,48 @@ export default function ReceptionDashboard() {
         </Text>
       ) : (
         recentList.map((item: any) => (
-          <View key={item.id} style={styles.appointmentCard}>
-            <View style={styles.tokenBadge}>
-              <Text style={styles.tokenText}>{item.token}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.patientName}>{item.name}</Text>
-              <Text style={styles.patientInfo}>Dr. {item.doctorName}</Text>
-            </View>
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor:
-                    item.status === "Completed" ? "#DCFCE7" : "#FEF3C7",
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  color: item.status === "Completed" ? "#16A34A" : "#D97706",
-                  fontWeight: "700",
-                  fontSize: 11,
-                }}
+          <TouchableOpacity
+            key={item.id}
+            style={styles.appointmentCard}
+            onPress={() => openSlip(item)}
+          >
+            <View style={styles.appointmentCard}>
+              <View style={styles.tokenBadge}>
+                <Text style={styles.tokenText}>{item.token}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.patientName}>{item.name}</Text>
+                <Text style={styles.patientInfo}>Dr. {item.doctorName}</Text>
+              </View>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor:
+                      item.status === "Completed" ? "#DCFCE7" : "#FEF3C7",
+                  },
+                ]}
               >
-                {item.status}
-              </Text>
+                <Text
+                  style={{
+                    color: item.status === "Completed" ? "#16A34A" : "#D97706",
+                    fontWeight: "700",
+                    fontSize: 11,
+                  }}
+                >
+                  {item.status}
+                </Text>
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
+
         ))
       )}
-
+      <SlipPopup
+        visible={visible}
+        data={selected}
+        onClose={() => setVisible(false)}
+      />
       <View style={{ height: 60 }} />
     </ScrollView>
   );
@@ -169,7 +208,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  logo: { fontSize: 26, fontWeight: "700", color: "#134E4A" },
+  logo: { fontSize: 26, fontWeight: "700", color: "#157e75" },
   subLogo: { color: "#64748B", marginTop: 3 },
   logoutBtn: {
     width: 48,

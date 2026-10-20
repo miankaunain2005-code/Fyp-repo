@@ -90,7 +90,7 @@ export default function AIChatScreen() {
                     <Ionicons
                         name="sparkles"
                         size={24}
-                        color="#2563EB"
+                        color="#0D9488"
                     />
                 </View>
 
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 22,
         fontWeight: "700",
-        color: "#0F172A",
+        color: "#157e75",
     },
 
     subtitle: {
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     },
 
     userBubble: {
-        backgroundColor: "#2563EB",
+        backgroundColor: "#0D9488",
         alignSelf: "flex-end",
         borderBottomRightRadius: 5,
     },
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
-        backgroundColor: "#2563EB",
+        backgroundColor: "#0D9488",
         justifyContent: "center",
         alignItems: "center",
         marginLeft: 10,

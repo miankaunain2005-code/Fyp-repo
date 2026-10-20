@@ -65,7 +65,7 @@ export default function SearchPatient() {
             </View>
 
             <TouchableOpacity style={styles.searchBtn} onPress={searchPatient}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.searchText}>Search</Text>}
+                {loading ? <ActivityIndicator color="#0D9488" /> : <Text style={styles.searchText}>Search</Text>}
             </TouchableOpacity>
 
             {!patient && results.length > 0 && (
@@ -114,7 +114,7 @@ export default function SearchPatient() {
                         disabled={patient.consultationCompleted}
                         onPress={() =>
                             router.push({
-                                pathname: "/(doctor)/consultation",
+                                pathname: "/doctor-consultation",
                                 params: {
                                     appointmentId: patient.id, token: patient.token, patientName: patient.name,
                                     age: patient.age, gender: patient.gender, phone: patient.phone,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     subtitle: { marginTop: 25, marginBottom: 10, color: "#64748B", fontSize: 15 },
     searchBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 18, paddingHorizontal: 18, height: 60, elevation: 4 },
     input: { flex: 1, marginLeft: 12, fontSize: 16 },
-    searchBtn: { backgroundColor: "#2563EB", height: 58, borderRadius: 18, justifyContent: "center", alignItems: "center", marginTop: 20, elevation: 4 },
+    searchBtn: { backgroundColor: "#0D9488", height: 58, borderRadius: 18, justifyContent: "center", alignItems: "center", marginTop: 20, elevation: 4 },
     searchText: { color: "#fff", fontSize: 18, fontWeight: "700" },
     resultCount: { color: "#64748B", marginBottom: 10, fontWeight: "600" },
     resultCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 15, padding: 15, marginBottom: 10, elevation: 3 },
@@ -158,6 +158,6 @@ const styles = StyleSheet.create({
     value: { fontWeight: "700", fontSize: 16, color: "#0F172A" },
     statusBox: { alignSelf: "center", marginTop: 10, backgroundColor: "#DCFCE7", paddingHorizontal: 20, paddingVertical: 8, borderRadius: 30 },
     statusText: { color: "#16A34A", fontWeight: "700" },
-    openBtn: { marginTop: 30, backgroundColor: "#2563EB", height: 60, borderRadius: 18, justifyContent: "center", alignItems: "center", flexDirection: "row" },
+    openBtn: { marginTop: 30, backgroundColor: "#0D9488", height: 60, borderRadius: 18, justifyContent: "center", alignItems: "center", flexDirection: "row" },
     openText: { color: "#fff", fontWeight: "700", fontSize: 18, marginLeft: 10 },
 });

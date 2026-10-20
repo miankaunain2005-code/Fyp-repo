@@ -269,7 +269,7 @@ export default function EditMedicine() {
               {loadingMedicines ? (
                 <ActivityIndicator
                   size="large"
-                  color="#2563EB"
+                  color="#0D9488"
                   style={{
                     marginTop: 30,
                   }}
@@ -419,7 +419,7 @@ export default function EditMedicine() {
                 disabled={updating}
               >
                 {updating ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#0D9488" />
                 ) : (
                   <>
                     <Ionicons name="save-outline" size={22} color="#fff" />

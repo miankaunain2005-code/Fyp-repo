@@ -5,7 +5,7 @@ export default function ReceptionLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
+        headerShown: true,
         tabBarActiveBackgroundColor: "#0D9488",
         tabBarActiveTintColor: "#fff",
         tabBarInactiveTintColor: "#94A3B8",
@@ -58,6 +58,13 @@ export default function ReceptionLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="patient-code"
+        options={{
+          title: "PatientCode",
+          href: null,
+        }}
+      ></Tabs.Screen>
     </Tabs>
   );
 }

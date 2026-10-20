@@ -223,8 +223,7 @@ export default function AddMedicine() {
               if (addedCount > 0) {
                 Alert.alert(
                   "Finish Adding Medicines?",
-                  `You have added ${addedCount} ${
-                    addedCount === 1 ? "medicine" : "medicines"
+                  `You have added ${addedCount} ${addedCount === 1 ? "medicine" : "medicines"
                   } in this session.`,
                   [
                     {
@@ -280,7 +279,7 @@ export default function AddMedicine() {
 
         <View style={styles.formCard}>
           <View style={styles.iconContainer}>
-            <Ionicons name="medical" size={32} color="#2563EB" />
+            <Ionicons name="medical" size={32} color="#0D9488" />
           </View>
 
           <Text style={styles.formTitle}>Medicine Information</Text>
@@ -391,7 +390,7 @@ export default function AddMedicine() {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#0D9488" />
             ) : (
               <>
                 <Ionicons name="add-circle" size={22} color="#fff" />
@@ -414,7 +413,7 @@ export default function AddMedicine() {
             <Ionicons
               name="checkmark-done-circle-outline"
               size={22}
-              color={addedCount === 0 ? "#94A3B8" : "#2563EB"}
+              color={addedCount === 0 ? "#94A3B8" : "#0D9488"}
             />
 
             <Text
@@ -449,7 +448,7 @@ const styles = StyleSheet.create({
   // HEADER
 
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 28,
     paddingHorizontal: 20,
@@ -583,7 +582,7 @@ const styles = StyleSheet.create({
   addButton: {
     height: 54,
     borderRadius: 12,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     marginTop: 12,
     justifyContent: "center",
     alignItems: "center",
@@ -607,7 +606,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#2563EB",
+    borderColor: "#0D9488",
     marginTop: 12,
     justifyContent: "center",
     alignItems: "center",
@@ -621,7 +620,7 @@ const styles = StyleSheet.create({
   },
 
   finishButtonText: {
-    color: "#2563EB",
+    color: "#0D9488",
     fontWeight: "700",
     fontSize: 15,
     marginLeft: 8,

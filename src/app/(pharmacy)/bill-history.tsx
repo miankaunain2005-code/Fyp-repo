@@ -66,13 +66,14 @@ export default function PharmacyBillHistory() {
   if (loading)
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
+
         <Text style={styles.headerTitle}>🧾 Pharmacy Bill History</Text>
         <Text style={styles.headerSub}>
           {filteredBills.length} bill{filteredBills.length !== 1 ? "s" : ""}
@@ -116,7 +117,7 @@ export default function PharmacyBillHistory() {
             }
           >
             <View style={styles.row}>
-              <Ionicons name="person" size={20} color="#2563EB" />
+              <Ionicons name="person" size={20} color="#0D9488" />
               <Text style={styles.name}>{bill.patientName}</Text>
               <View
                 style={[
@@ -129,7 +130,7 @@ export default function PharmacyBillHistory() {
               >
                 <Text
                   style={{
-                    color: bill.source === "online" ? "#2563EB" : "#16A34A",
+                    color: bill.source === "online" ? "#0D9488" : "#16A34A",
                     fontWeight: "700",
                     fontSize: 11,
                   }}
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#EEF5FF" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 25,
     paddingHorizontal: 20,
@@ -235,6 +236,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  total: { fontSize: 18, fontWeight: "800", color: "#2563EB" },
+  total: { fontSize: 18, fontWeight: "800", color: "#0D9488" },
   pharmacist: { color: "#6B7280", fontSize: 13 },
 });

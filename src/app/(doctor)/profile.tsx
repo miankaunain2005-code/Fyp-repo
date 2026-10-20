@@ -30,7 +30,7 @@ export default function DoctorProfile() {
 
   useEffect(() => {
     loadProfile();
-  }, []);
+  },);
 
   const loadProfile = async () => {
     try {
@@ -106,7 +106,7 @@ export default function DoctorProfile() {
 
       <View style={styles.avatarSection}>
         <View style={styles.avatar}>
-          <Ionicons name="medical" size={50} color="#2563EB" />
+          <Ionicons name="medical" size={50} color="#0D9488" />
         </View>
         <Text style={styles.docName}>Dr. {name}</Text>
         <Text style={styles.docSpec}>{specialization}</Text>
@@ -119,7 +119,7 @@ export default function DoctorProfile() {
             <Ionicons
               name={editing ? "close" : "create-outline"}
               size={22}
-              color="#2563EB"
+              color="#0D9488"
             />
           </TouchableOpacity>
         </View>
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F4F7FC" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     paddingTop: 55,
     paddingBottom: 25,
     paddingHorizontal: 20,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   docName: { fontSize: 20, fontWeight: "800", color: "#0F172A" },
-  docSpec: { color: "#2563EB", marginTop: 4, fontWeight: "600" },
+  docSpec: { color: "#0D9488", marginTop: 4, fontWeight: "600" },
   card: {
     backgroundColor: "#fff",
     marginHorizontal: 15,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
   inputDisabled: { backgroundColor: "#F9FAFB", color: "#6B7280" },
   saveBtn: {
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0D9488",
     height: 50,
     borderRadius: 10,
     justifyContent: "center",

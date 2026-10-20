@@ -61,7 +61,7 @@ export default function PharmacyDashboard() {
         const billSnap = await getDocs(collection(db, "bills"));
 
         setTodayBills(billSnap.size);
-      } catch {}
+      } catch { }
 
       // Medicines
 
@@ -69,7 +69,7 @@ export default function PharmacyDashboard() {
         const medSnap = await getDocs(collection(db, "medicines"));
 
         setInventoryCount(medSnap.size);
-      } catch {}
+      } catch { }
     } catch (error) {
       console.log(error);
     }
@@ -116,7 +116,7 @@ export default function PharmacyDashboard() {
           style={styles.menuBtn}
           onPress={() => setDrawerVisible(true)}
         >
-          <Ionicons name="menu" size={24} color="#2563EB" />
+          <Ionicons name="menu" size={24} color="#0D9488" />
         </TouchableOpacity>
       </View>
 
@@ -237,7 +237,7 @@ export default function PharmacyDashboard() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#2563EB"
+          color="#0D9488"
           style={{ marginTop: 40 }}
         />
       ) : list.length === 0 ? (
@@ -257,7 +257,7 @@ export default function PharmacyDashboard() {
             style={styles.card}
             onPress={() =>
               router.push({
-                pathname: "/(pharmacy)/prescription-history",
+                pathname: "/(pharmacy)/prescription-detail",
                 params: {
                   prescriptionId: item.id,
                 },
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#0D9488",
+    color: "#157e75",
   },
 
   subtitle: {
